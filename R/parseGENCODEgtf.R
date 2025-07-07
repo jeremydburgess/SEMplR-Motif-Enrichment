@@ -6,14 +6,7 @@
 #
 # Returns:
 #   A tibble with the standard GTF columns plus one column per attribute
-
-parseGENCODEgtf <- function(gtf_path, feature_types = NULL) {
-  # Load dependencies
-  library(readr)
-  library(dplyr)
-  library(stringr)
-  library(tidyr)
-
+parseGENCODEgtf <- function(gtf_path = "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.annotation.gtf.gz", feature_types = c("gene","transcript")) {
   # 1. Read in the GTF
   message("1/6 ▶ Reading GTF...")
   raw_gtf <- read_tsv(
@@ -95,8 +88,3 @@ parseGENCODEgtf <- function(gtf_path, feature_types = NULL) {
   message("6/6 ▶ Returning formatted tibble...")
   raw_gtf
 }
-
-# Example usage:
-# gtf_path <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.annotation.gtf.gz"
-# df <- parseGENCODEgtf(gtf_path, feature_types = c("gene","transcript"))
-# head(df)

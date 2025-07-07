@@ -120,6 +120,7 @@ parseGENCODEgtf <- function(gtf_path = "https://ftp.ebi.ac.uk/pub/databases/genc
 #     • gene_id_base and transcript_id_base (version-stripped IDs)
 #     • unique_id (row number)
 #     • joined metadata columns: entrez_id, HGNC_symbol, HGNC_id, RefSeq_TxID, RefSeq_PxID
+#     • TSS calculated from start/end and strand
 annotateGTF <- function(
     parsed_gtf,
     flags = c(
@@ -138,7 +139,7 @@ annotateGTF <- function(
   df <- parsed_gtf
 
   # 1) Add requested tag flags
-  message("1/4 ▶ Adding tag flag fields...")
+  message("1/5 ▶ Adding tag flag fields...")
   if (length(flags) > 0) {
     for (f in flags) {
       df <- df %>%
@@ -149,7 +150,7 @@ annotateGTF <- function(
   }
 
   # 2) Add base IDs and unique row identifier
-  message("2/4 ▶ Adding base ensembl ids...")
+  message("2/5 ▶ Adding base ensembl ids...")
   df <- df %>%
     mutate(
       gene_id_base       = sub("\\.\\d+$", "", gene_id),
@@ -158,7 +159,7 @@ annotateGTF <- function(
     )
 
   # 3) Read & join metadata tables
-  message("3/4 ▶ importing alternate id types from GENCODE metadata...")
+  message("3/5 ▶ importing alternate id types from GENCODE metadata...")
   entrez <- read_tsv(metadata_urls$entrez,
                      col_names = c("transcript_id","entrez_id"),
                      show_col_types = FALSE)
@@ -169,13 +170,19 @@ annotateGTF <- function(
                      col_names = c("transcript_id","RefSeq_TxID","RefSeq_PxID"),
                      show_col_types = FALSE)
 
-  message("4/4 ▶ Adding alternate id types...")
+  message("4/5 ▶ Adding alternate id types...")
   df %>%
     left_join(entrez, by = "transcript_id", relationship = "many-to-many") %>%
     left_join(hgnc,   by = "transcript_id", relationship = "many-to-many") %>%
     left_join(refseq, by = "transcript_id", relationship = "many-to-many") %>%
     distinct()
-}
+
+  message("5/5 ▶ Calculating TSS...")
+  df %>%
+    mutate(
+      TSS = if_else(strand == "+", start, end))
+
+  }
 
 
 # compute_match_stats: For each ID column, what fraction of `user_list` is found?
@@ -237,66 +244,97 @@ compute_match_stats <- function(user_list,
 #               if NULL, defaults to the standard set (gene_name, gene_id, transcript_id, etc.)
 #   threshold:  numeric between 0 and 1 giving the minimum fraction of user_list that must match
 #               (default 0.90) in the best‐hit column or the function returns NULL
+#   gene_strategy: for gene‐level IDs, one of
+#                 "gene", "flagged_transcript", "most_frequent_TSS",
+#                 "unique_TSS", or "all_TSS"
+#   flag_choice:   which flag to use when gene_strategy = "flagged_transcript"
 #
 # Returns:
-#   If a match ≥ threshold is found: a tibble with columns
-#     • unique_id, seqnames, start, end, strand
-#     for only those rows whose ID (in the chosen column) is in user_list.
-#   Otherwise: NULL (and a message advising the user to supply a different ID format).
-map_and_report <- function(user_list, map_df, idCols = NULL, threshold = 0.90) {
-  # 1) Compute match stats
+#   A tibble with columns unique_id, seqnames, TSS, strand for the selected features,
+#   or NULL if no ID type maps above the threshold.
+map_and_report <- function(
+    user_list,
+    map_df,
+    idCols        = NULL,
+    threshold     = 0.90,
+    gene_strategy = c(
+      "gene",
+      "flagged_transcript",
+      "most_frequent_TSS",
+      "unique_TSS",
+      "all_TSS"
+    ),
+    flag_choice   = "GENCODE_Primary"
+) {
+  gene_strategy <- match.arg(gene_strategy)
   stats <- compute_match_stats(user_list, map_df, idCols)
-  # stats <- compute_match_stats(user_list, gtf_map, idCols)
+  best  <- stats[which.max(stats$pct_matched), ]
 
-  # 2) Pick the best‐matching ID type
-  best <- stats[which.max(stats$pct_matched), ]
-
-  # 3) Check threshold
-  if (best$pct_matched / 100 >= threshold) {
-    msg <- sprintf(
-      "Identified input ids as %s (%d of %d; %.1f%%).",
-      best$id_type, best$matched, best$total, best$pct_matched
-    )
-    message(msg)
-
-    # 4) Classify the ID type
-    gene_keys       <- c("gene_id", "gene_name", "entrez_id", "HGNC_symbol", "HGNC_id")
-    transcript_keys <- c("transcript_id", "transcript_name", "RefSeq_TxID")
-
-    id_level <- if (best$id_type %in% gene_keys) {
-      "gene"
-    } else if (best$id_type %in% transcript_keys) {
-      "transcript"
-    } else {
-      # fallback: assume transcript-level for anything else
-      "transcript"
-    }
-
-    # 5) Subset to only that feature_type
-    subset_df <- map_df %>%
-      filter(feature_type == id_level,
-             .data[[best$id_type]] %in% user_list)
-
-    # 6) Build your minimal table
-    minimal <- subset_df %>%
-      select(
-        unique_id, seqnames,
-        start, end, strand
-      ) %>%
-      unique()
-
-    return(minimal)
-  } else {
-    message(
-      sprintf(
-        "Unable to map IDs ≥ %.0f%% in any supported field; please supply IDs in one of: %s.",
-        threshold*100,
-        paste(stats$id_type, collapse = ", ")
-      )
-    )
+  if (best$pct_matched / 100 < threshold) {
+    message("Unable to map IDs ≥ ", threshold*100, "% in any field; please supply IDs in a supported format.")
     return(NULL)
   }
+  message(sprintf(
+    "Identified input ids as %s (%d/%d; %.1f%%).",
+    best$id_type, best$matched, best$total, best$pct_matched
+  ))
+
+  # keep only rows matching user_list
+  df <- map_df %>%
+    filter(.data[[best$id_type]] %in% user_list)
+
+  # classify level
+  gene_keys       <- c("gene_id","gene_name","entrez_id","HGNC_symbol","HGNC_id")
+  transcript_keys <- c("transcript_id","transcript_name","RefSeq_TxID")
+  id_level <- if (best$id_type %in% gene_keys) "gene" else "transcript"
+
+  if (id_level == "gene") {
+    # apply gene_strategy...
+    df_gene <- df %>% filter(feature_type %in% c("gene","transcript"))
+    minimal <- switch(
+      gene_strategy,
+      gene = {
+        df_gene %>% filter(feature_type == "gene")
+      },
+      flagged_transcript = {
+        df_gene %>%
+          filter(feature_type == "transcript", !!sym(flag_choice) == 1L)
+      },
+      most_frequent_TSS = {
+        df_gene %>%
+          filter(feature_type == "transcript") %>%
+          mutate(TSS = if_else(strand == "+", start, end)) %>%
+          count(gene_id, TSS, name = "n") %>%
+          slice_max(n, with_ties = FALSE) %>%
+          select(-n) %>%
+          inner_join(df_gene %>% mutate(TSS = if_else(strand == "+", start, end)),
+                     by = c("gene_id","TSS"))
+      },
+      unique_TSS = {
+        df_gene %>%
+          filter(feature_type == "transcript") %>%
+          mutate(TSS = if_else(strand == "+", start, end)) %>%
+          distinct(gene_id, TSS, .keep_all = TRUE)
+      },
+      all_TSS = {
+        df_gene %>% filter(feature_type == "transcript")
+      }
+    )
+  } else {
+    message("Transcript-level IDs detected; returning all mapped transcripts (ignoring gene_strategy).")
+    minimal <- df %>% filter(feature_type == "transcript")
+  }
+
+  # return only the promoter‐relevant columns, with unified TSS
+  minimal %>%
+    transmute(
+      unique_id,
+      seqnames,
+      TSS    = if_else(strand == "+", start, end),
+      strand
+    )
 }
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 #   Code
@@ -330,5 +368,8 @@ user_list <- c(
   "ENST00000831173.1", "ENST00000831170.1", "ENST00000831189.1"
 )
 
-Matched <- map_and_report(user_list,gtf_map)
+
+user_list <- gtf_map$gene_id[1:1000]
+
+Matched <- map_and_report(user_list,gtf_map,gene_strategy = "most_frequent_TSS")
 

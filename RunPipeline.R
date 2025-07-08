@@ -26,7 +26,6 @@ gtf_map <- annotateGTF(gtf,metadata_urls = list( # Locally stored version
 ))
 
 
-
 # Based on provided input list, map to an id type and return minimal table to use to identify promoter coordinates for matching genes/transcripts
 
 # Make dummy user list (500 random ids from gtf_map) - replace gene_id for other id types (doesn't account for NAs or forcing unique ids)
@@ -50,10 +49,13 @@ TSSforEnrichment <- definePools(mappedRecords,id_level = "auto",
 
 
 
-# Define promoter regions and convert to GRanges (maintaining other columns as metadata)
-ForegroundPromoters <- definePromoterRegions(ForegroundTSS)
+# Define promoter regions and convert to GRangesList (maintaining other columns as metadata)
+PromoterGRanges <- definePromoterRegions(TSSforEnrichment)
+PromoterGRanges$backgroundUniverse  # GRanges
+PromoterGRanges$foregroundElements  # GRanges
 
-# Add sequences to foreground GRanges
+
+Add sequences to foreground GRanges
 prom_seqs <- extractPromoterSeqs(ForegroundPromoters, BSgenome.Hsapiens.UCSC.hg38)
 
 

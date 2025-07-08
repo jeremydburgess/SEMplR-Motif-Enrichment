@@ -1,26 +1,41 @@
 library(GenomicRanges)
 library(GenomicFeatures)  # for makeGRangesFromDataFrame
+library(GenomicRanges)
 
-definePromoterRegions <- function(df, region = c(300, 50)) {
-  up   <- abs(region[1])
-  down <- region[2]
+library(dplyr)
+library(GenomicRanges)
+library(GenomicFeatures)
 
-  # First compute promoter_start/end in the df
-  df2 <- df %>%
-    mutate(
-      promoter_start = if_else(strand == "+", TSS - up,    TSS - down),
-      promoter_end   = if_else(strand == "+", TSS + down,  TSS + up)
-    )
+definePromoterRegions <- function(pools,
+                                  region = c(upstream = 300, downstream = 50)) {
+  up   <- abs(region["upstream"])
+  down <- region["downstream"]
 
-  # Now make a GRanges, keeping all other columns as metadata
-  gr_prom <- makeGRangesFromDataFrame(
-    df2,
-    keep.extra.columns = TRUE,
-    seqnames.field = "seqnames",
-    start.field    = "promoter_start",
-    end.field      = "promoter_end",
-    strand.field   = "strand"
+  GRangesList(
+    backgroundUniverse = {
+      df2 <- pools$backgroundUniverse %>%
+        mutate(
+          promoter_start = if_else(strand == "+", TSS - up,    TSS - down),
+          promoter_end   = if_else(strand == "+", TSS + down,  TSS + up)
+        )
+      makeGRangesFromDataFrame(df2, keep.extra.columns=TRUE,
+                               seqnames.field="seqnames", start.field="promoter_start",
+                               end.field="promoter_end", strand.field="strand")
+    },
+    foregroundElements = {
+      df2 <- pools$foregroundElements %>%
+        mutate(
+          promoter_start = if_else(strand == "+", TSS - up,    TSS - down),
+          promoter_end   = if_else(strand == "+", TSS + down,  TSS + up)
+        )
+      makeGRangesFromDataFrame(df2, keep.extra.columns=TRUE,
+                               seqnames.field="seqnames", start.field="promoter_start",
+                               end.field="promoter_end", strand.field="strand")
+    }
   )
-
-  gr_prom
 }
+
+# usage:
+# prom_grl <- definePromoterRegions(pools)
+# prom_grl$backgroundUniverse  # GRanges
+# prom_grl$foregroundElements  # GRanges

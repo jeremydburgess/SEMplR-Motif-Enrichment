@@ -2,7 +2,8 @@ source("R/parseGENCODEgtf.R")
 source("R/annotateGTF.R")
 source("R/computeMatchStats.R")
 source("R/mapUserList.R")
-source("R/assembleTSSforeground.R")
+# source("R/assembleTSSforeground.R")
+source("R/definePools.R")
 source("R/definePromoterRegions.R")
 source("R/extractPromoterSeqs.R")
 
@@ -34,12 +35,20 @@ user_list <- gtf_map$gene_id[sample.int(nrow(gtf_map), 500, replace = FALSE)]
 # Map user list to gtf_map and extract relevant columns from subset (foreground)
 mappedRecords <- mapUserList(user_list,gtf_map)
 
-# # Extract dataframe of mapped records
-mapped <- mappedRecords$mapped_df
-universe <- mappedRecords$input_df
+# # # Extract dataframe of mapped records
+# mapped <- mappedRecords$mapped_df
+# universe <- mappedRecords$input_df
 
-# Filter to enrichment foreground TSS table
-ForegroundTSS <- assembleTSSforeground(mappedRecords,id_level = "auto",gene_filter = "flag:Ensembl_canonical")
+# # Filter to enrichment foreground TSS table
+# ForegroundTSS <- assembleTSSforeground(mappedRecords,id_level = "auto",gene_filter = "flag:Ensembl_canonical")
+
+# Filter foreground elements and background pool according to universe and gene filters
+TSSforEnrichment <- definePools(mappedRecords,id_level = "auto",
+                                gene_filter = "flag:Ensembl_canonical",
+                                universe_filter = list(gene_type = c("lncRNA","protein_coding")),
+                                universe_filter_logic = "or")
+
+
 
 # Define promoter regions and convert to GRanges (maintaining other columns as metadata)
 ForegroundPromoters <- definePromoterRegions(ForegroundTSS)

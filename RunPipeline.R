@@ -5,7 +5,7 @@ source("R/mapUserList.R")
 # source("R/assembleTSSforeground.R")
 source("R/definePools.R")
 source("R/definePromoterRegions.R")
-source("R/extractPromoterSeqs.R")
+source("R/getPromoterSeqs.R")
 
 # BiocManager::install("BSgenome.Hsapiens.UCSC.hg38", version = "3.20")
 library(BSgenome.Hsapiens.UCSC.hg38)
@@ -51,12 +51,11 @@ TSSforEnrichment <- definePools(mappedRecords,id_level = "auto",
 
 # Define promoter regions and convert to GRangesList (maintaining other columns as metadata)
 PromoterGRanges <- definePromoterRegions(TSSforEnrichment)
-PromoterGRanges$backgroundUniverse  # GRanges
-PromoterGRanges$foregroundElements  # GRanges
+    # PromoterGRanges$backgroundUniverse  # GRanges
+    # PromoterGRanges$foregroundElements  # GRanges
 
-
-Add sequences to foreground GRanges
-prom_seqs <- extractPromoterSeqs(ForegroundPromoters, BSgenome.Hsapiens.UCSC.hg38)
+# Add sequences to GRanges
+PromoterGRangesSeqs <- getPromoterSeqs(PromoterGRanges, BSgenome.Hsapiens.UCSC.hg38, flank_rc = TRUE)
 
 
 

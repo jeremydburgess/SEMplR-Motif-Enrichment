@@ -23,7 +23,7 @@ annotateGTF <- function(
       "GENCODE_Primary",
       "Ensembl_canonical",
       "MANE_Select",
-      "MANE_Plus_Clinical"
+#      "MANE_Plus_Clinical" # Probably not really a useful flag to include - it is very limited and doesn't include MANE_Select
     ),
     metadata_urls = list(
       entrez = "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.metadata.EntrezGene.gz",

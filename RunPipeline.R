@@ -11,11 +11,20 @@ library(BSgenome.Hsapiens.UCSC.hg38)
 
 
 # Parse gencode gtf
-gtf_path <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.annotation.gtf.gz"
+# gtf_path <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.annotation.gtf.gz"
+gtf_path <- "/Users/jeremy_burgess/Downloads/gencode.v48.annotation.gtf.gz" # Locally stored version
+
 gtf <- parseGENCODEgtf(feature_types = c("gene","transcript"))
 
 # Add priority flags and alternate id types
-gtf_map <- annotateGTF(gtf)
+# gtf_map <- annotateGTF(gtf)
+gtf_map <- annotateGTF(gtf,metadata_urls = list( # Locally stored version
+  entrez = "/Users/jeremy_burgess/Downloads/gencode.v48.metadata.EntrezGene.gz",
+  hgnc   = "/Users/jeremy_burgess/Downloads/gencode.v48.metadata.HGNC.gz",
+  refseq = "/Users/jeremy_burgess/Downloads/gencode.v48.metadata.RefSeq.gz"
+))
+
+
 
 # Based on provided input list, map to an id type and return minimal table to use to identify promoter coordinates for matching genes/transcripts
 
@@ -25,8 +34,9 @@ user_list <- gtf_map$gene_id[sample.int(nrow(gtf_map), 500, replace = FALSE)]
 # Map user list to gtf_map and extract relevant columns from subset (foreground)
 mappedRecords <- mapUserList(user_list,gtf_map)
 
-# Extract dataframe of mapped records
+# # Extract dataframe of mapped records
 mapped <- mappedRecords$mapped_df
+universe <- mappedRecords$input_df
 
 # Filter to enrichment foreground TSS table
 ForegroundTSS <- assembleTSSforeground(mappedRecords,id_level = "auto",gene_filter = "flag:Ensembl_canonical")
@@ -36,6 +46,10 @@ ForegroundPromoters <- definePromoterRegions(ForegroundTSS)
 
 # Add sequences to foreground GRanges
 prom_seqs <- extractPromoterSeqs(ForegroundPromoters, BSgenome.Hsapiens.UCSC.hg38)
+
+
+
+
 
 
 

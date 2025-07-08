@@ -4,6 +4,11 @@ source("R/computeMatchStats.R")
 source("R/mapUserList.R")
 source("R/assembleTSSforeground.R")
 source("R/definePromoterRegions.R")
+source("R/extractPromoterSeqs.R")
+
+# BiocManager::install("BSgenome.Hsapiens.UCSC.hg38", version = "3.20")
+library(BSgenome.Hsapiens.UCSC.hg38)
+
 
 # Parse gencode gtf
 gtf_path <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.annotation.gtf.gz"
@@ -28,3 +33,20 @@ ForegroundTSS <- assembleTSSforeground(mappedRecords,id_level = "auto",gene_filt
 
 # Define promoter regions and convert to GRanges (maintaining other columns as metadata)
 ForegroundPromoters <- definePromoterRegions(ForegroundTSS)
+
+# Add sequences to foreground GRanges
+prom_seqs <- extractPromoterSeqs(ForegroundPromoters, BSgenome.Hsapiens.UCSC.hg38)
+
+
+
+
+# Testing:
+
+library(GenomicRanges)
+library(tibble)
+
+# say fg_prom is your GRanges and prom_seqs its DNAStringSet
+df_seqs <- as_tibble(ForegroundPromoters) %>%       # turns GRanges → tibble with seqnames, start, end, strand, plus mcols
+  mutate(sequence = as.character(prom_seqs))
+
+df_seqs

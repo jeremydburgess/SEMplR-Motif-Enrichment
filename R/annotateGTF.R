@@ -46,7 +46,7 @@ annotateGTF <- function(
   # }
 
   # 1) Add requested tag flags (with “flag_” prefix)
-  message("1/5 ▶ Adding tag flag fields...")
+  message("1/6 ▶ Adding tag flag fields...")
   if (length(flags) > 0) {
     for (f in flags) {
       flag_col <- paste0("flag_", f)
@@ -62,17 +62,16 @@ annotateGTF <- function(
     }
   }
 
-  # 2) Add base IDs and unique row identifier
-  message("2/5 ▶ Adding base ensembl ids...")
+  # 2) Add base IDs
+  message("2/6 ▶ Adding base ensembl ids...")
   df <- df %>%
     mutate(
       gene_id_base       = sub("\\.\\d+$", "", gene_id),
-      transcript_id_base = sub("\\.\\d+$", "", transcript_id),
-      unique_id          = row_number()
+      transcript_id_base = sub("\\.\\d+$", "", transcript_id)
     )
 
   # 3) Read & join metadata tables
-  message("3/5 ▶ importing alternate id types from GENCODE metadata...")
+  message("3/6 ▶ importing alternate id types from GENCODE metadata...")
   entrez <- read_tsv(metadata_urls$entrez,
                      col_names = c("transcript_id","entrez_id"),
                      show_col_types = FALSE)
@@ -83,14 +82,18 @@ annotateGTF <- function(
                      col_names = c("transcript_id","RefSeq_TxID","RefSeq_PxID"),
                      show_col_types = FALSE)
 
-  message("4/5 ▶ Adding alternate id types...")
+  message("4/6 ▶ Adding alternate id types...")
   df %>%
     left_join(entrez, by = "transcript_id", relationship = "many-to-many") %>%
     left_join(hgnc,   by = "transcript_id", relationship = "many-to-many") %>%
     left_join(refseq, by = "transcript_id", relationship = "many-to-many") %>%
     distinct()
 
-  message("5/5 ▶ Calculating TSS...")
+  message("5/6 ▶ Adding unique_id (from row name)...")
+  df <- df %>%
+    mutate(unique_id = row_number())
+
+  message("5/6 ▶ Calculating TSS...")
   df %>%
     mutate(
       TSS = if_else(strand == "+", start, end))

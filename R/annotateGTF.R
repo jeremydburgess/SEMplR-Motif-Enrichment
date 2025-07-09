@@ -93,7 +93,7 @@ annotateGTF <- function(
   df <- df %>%
     mutate(unique_id = row_number())
 
-  message("5/6 ▶ Calculating TSS...")
+  message("6/6 ▶ Calculating TSS...")
   df %>%
     mutate(
       TSS = if_else(strand == "+", start, end))

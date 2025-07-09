@@ -2,11 +2,10 @@ source("R/parseGENCODEgtf.R")
 source("R/annotateGTF.R")
 source("R/computeMatchStats.R")
 source("R/mapUserList.R")
-# source("R/assembleTSSforeground.R")
 source("R/definePools.R")
 source("R/definePromoterRegions.R")
-source("R/getPromoterSeqs.R")
 source("R/defineBackgroundElements.R")
+source("R/getPromoterSeqs.R")
 
 # BiocManager::install("BSgenome.Hsapiens.UCSC.hg38", version = "3.20")
 # BiocManager::install("nullranges", version = "3.20")
@@ -60,7 +59,7 @@ PromoterGRanges <- definePromoterRegions(TSSforEnrichment)
 
 # Select background elements from backgroundPool
 ## 1) Return the raw pool (including FG) ##
-all_pool <- defineBackgroundElements(
+bg_pool <- defineBackgroundElements(
   background_universe = PromoterGRanges$backgroundUniverse,
   foreground_elements = PromoterGRanges$foregroundElements,
   bsgenome            = BSgenome.Hsapiens.UCSC.hg38,
@@ -70,7 +69,7 @@ all_pool <- defineBackgroundElements(
 
 
 ## 2) Random draw at 2× the FG size ##
-random_bg <- defineBackgroundElements(
+bg_random <- defineBackgroundElements(
   background_universe = PromoterGRanges$backgroundUniverse,
   foreground_elements = PromoterGRanges$foregroundElements,
   bsgenome            = BSgenome.Hsapiens.UCSC.hg38,
@@ -82,7 +81,7 @@ random_bg <- defineBackgroundElements(
 
 
 ## 3) Matched draw on width + GC + chromosome ##
-matched_bg <- defineBackgroundElements(
+bg_matched <- defineBackgroundElements(
   background_universe = PromoterGRanges$backgroundUniverse,
   foreground_elements = PromoterGRanges$foregroundElements,
   bsgenome            = BSgenome.Hsapiens.UCSC.hg38,

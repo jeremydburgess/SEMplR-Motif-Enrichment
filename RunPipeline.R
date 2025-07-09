@@ -6,9 +6,13 @@ source("R/mapUserList.R")
 source("R/definePools.R")
 source("R/definePromoterRegions.R")
 source("R/getPromoterSeqs.R")
+source("R/defineBackgroundElements.R")
 
 # BiocManager::install("BSgenome.Hsapiens.UCSC.hg38", version = "3.20")
+# BiocManager::install("nullranges", version = "3.20")
 library(BSgenome.Hsapiens.UCSC.hg38)
+library(nullranges)
+library(ks)
 
 
 # Parse gencode gtf
@@ -54,23 +58,44 @@ PromoterGRanges <- definePromoterRegions(TSSforEnrichment)
     # PromoterGRanges$backgroundUniverse  # GRanges
     # PromoterGRanges$foregroundElements  # GRanges
 
+# Select background elements from backgroundPool
+## 1) Return the raw pool (including FG) ##
+all_pool <- defineBackgroundElements(
+  background_universe = PromoterGRanges$backgroundUniverse,
+  foreground_elements = PromoterGRanges$foregroundElements,
+  bsgenome            = BSgenome.Hsapiens.UCSC.hg38,
+  method              = "pool",
+  exclude_fg          = FALSE
+)
+
+
+## 2) Random draw at 2× the FG size ##
+random_bg <- defineBackgroundElements(
+  background_universe = PromoterGRanges$backgroundUniverse,
+  foreground_elements = PromoterGRanges$foregroundElements,
+  bsgenome            = BSgenome.Hsapiens.UCSC.hg38,
+  method              = "random",
+  n_ratio             = 2,       # twice as many bg as fg
+  exclude_fg          = TRUE,    # drop true promoters first
+  seed                = 42
+)
+
+
+## 3) Matched draw on width + GC + chromosome ##
+matched_bg <- defineBackgroundElements(
+  background_universe = PromoterGRanges$backgroundUniverse,
+  foreground_elements = PromoterGRanges$foregroundElements,
+  bsgenome            = BSgenome.Hsapiens.UCSC.hg38,
+  method              = "matched",
+  n_ratio             = 1,
+  covariates          = c("width","gc","seqnames"),  # match on length, GC, chr
+  exclude_fg          = TRUE,
+  seed                = 2025,
+  nullranges_args     = list(
+    method     = "rejection"
+  )
+)
+
+
 # Add sequences to GRanges
-PromoterGRangesSeqs <- getPromoterSeqs(PromoterGRanges, BSgenome.Hsapiens.UCSC.hg38, flank_rc = TRUE)
-
-
-
-
-
-
-
-
-# Testing:
-
-library(GenomicRanges)
-library(tibble)
-
-# say fg_prom is your GRanges and prom_seqs its DNAStringSet
-df_seqs <- as_tibble(ForegroundPromoters) %>%       # turns GRanges → tibble with seqnames, start, end, strand, plus mcols
-  mutate(sequence = as.character(prom_seqs))
-
-df_seqs
+PromoterGRangesSeqs <- getPromoterSeqs(matched_bg, BSgenome.Hsapiens.UCSC.hg38, flank_rc = TRUE)

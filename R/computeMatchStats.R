@@ -1,4 +1,4 @@
-compute_match_stats <- function(user_list,
+computeMatchStats <- function(user_list,
                                 map_df,
                                 idCols = NULL) {
   total_ids <- length(user_list)

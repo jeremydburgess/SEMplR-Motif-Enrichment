@@ -7,6 +7,14 @@ source("R/definePromoterRegions.R")
 source("R/defineBackgroundElements.R")
 source("R/getPromoterSeqs.R")
 
+library(readr)    # for read_tsv()
+library(dplyr)    # for filter(), mutate(), distinct(), pull()
+library(tidyr)    # for separate_rows()
+library(stringr)  # for str_squish(), str_count(), str_match(), str_match_all(), word()
+
+
+
+
 # BiocManager::install("BSgenome.Hsapiens.UCSC.hg38", version = "3.20")
 # BiocManager::install("nullranges", version = "3.20")
 library(BSgenome.Hsapiens.UCSC.hg38)
@@ -15,9 +23,8 @@ library(ks)
 
 
 # Parse gencode gtf
-# gtf_path <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.annotation.gtf.gz"
+gtf_path <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.annotation.gtf.gz"
 gtf_path <- "/Users/jeremy_burgess/Downloads/gencode.v48.annotation.gtf.gz" # Locally stored version
-
 gtf <- parseGENCODEgtf(feature_types = c("gene","transcript"))
 
 # Add priority flags and alternate id types
@@ -36,13 +43,6 @@ user_list <- gtf_map$gene_id[sample.int(nrow(gtf_map), 500, replace = FALSE)]
 
 # Map user list to gtf_map and extract relevant columns from subset (foreground)
 mappedRecords <- mapUserList(user_list,gtf_map)
-
-# # # Extract dataframe of mapped records
-# mapped <- mappedRecords$mapped_df
-# universe <- mappedRecords$input_df
-
-# # Filter to enrichment foreground TSS table
-# ForegroundTSS <- assembleTSSforeground(mappedRecords,id_level = "auto",gene_filter = "flag:Ensembl_canonical")
 
 # Filter foreground elements and background pool according to universe and gene filters
 TSSforEnrichment <- definePools(mappedRecords,id_level = "auto",

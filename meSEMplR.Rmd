@@ -1,0 +1,90 @@
+---
+title: "Motif Enrichment in SEMplR (meSEMplR)"
+author: "Jez Burgess"
+date: "2025-07-09"
+output:
+  revealjs::revealjs_presentation:
+    slide_level: 2
+    incremental: true
+---
+
+## 1. Overview
+
+- **Goal**: For a given list of differential ids, map to GENCODE data, define promoter regions, and establish foreground and backgroiund sets for motif enrichment analysis.
+- **Key steps**:
+  1. Parse & tidy GENCODE GTF - parseGENCODEgtf()
+  2. Annotate with metadata - annotateGTF()
+  3. Map user gene list to identify id type - computeMatchStats()
+  4. Define enrichment pools - mapUserList()
+  5. Establish background elements (matched/random) - defineBckgroundElements()
+  [6. Extract sequences for foreground and background elements - getPromoterSeqs()]
+
+---
+
+## 2. Step 1: parseGENCODEgtf()
+
+**Input**:
+- GENCODE GTF file path (e.g. `gencode.v48.annotation.gtf.gz`)
+- `feature_types = c("gene", "transcript")`
+
+**Function call**:
+
+```r
+gtf <- parseGENCODEgtf(
+  gtf_path,
+  feature_types = c("gene", "transcript")
+)
+```
+
+```{r show-gtf-head, results='hold'}
+library(knitr)
+# Example output (uncomment after defining gtf)
+# kable(head(gtf)[, c("seqnames", "start", "end", "feature_type")],
+#       caption = "First 6 rows of parsed GTF")
+```
+
+---
+
+## 3. Step 2: annotateGTF()
+
+**Input**:
+- `gtf` (from previous slide)
+- External metadata URLs or local files
+
+**Function call**:
+
+```r
+gtf_map <- annotateGTF(
+  gtf,
+  metadata_urls = list(
+    entrez = "path/to/Entrez.gz",
+    hgnc   = "path/to/HGNC.gz",
+    refseq = "path/to/RefSeq.gz"
+  )
+)
+```
+
+**Output**:
+- `gtf_map` includes `flag_*` columns (e.g. `flag_Ensembl_canonical`)
+- Stripped ID versions (`gene_id_base`, `transcript_id_base`)
+- Joined `entrez_id`, `HGNC_symbol`, etc.
+
+---
+
+## 4. Step 3: compute_match_stats()
+
+**Purpose**: Identify which column best matches your `user_list`.
+
+**Function call**:
+
+```r
+stats <- compute_match_stats(
+  user_list,
+  map_df = gtf_map
+)
+```
+
+```{r show-stats-head, results='hold'}
+# Example output (uncomment after computing stats)
+# kable(head(stats), caption = "Mapping statistics by ID column")
+```

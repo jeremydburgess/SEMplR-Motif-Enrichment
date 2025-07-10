@@ -1,3 +1,5 @@
+source("R/computeMatchStats.R")
+
 mapUserList <- function(
     user_list,
     map_df,
@@ -5,7 +7,7 @@ mapUserList <- function(
     threshold = 0.90) {
 
   # Calculate and tabulate mapping stats per id_type in map_df
-  stats <- compute_match_stats(user_list, map_df, idCols)
+  stats <- computeMatchStats(user_list, map_df, idCols)
 
   # Isolate stats for best mapping id_type
   best <- stats[which.max(stats$pct_matched), ]
@@ -72,7 +74,7 @@ mapUserList <- function(
     match_stats   = stats,
     best_id_type  = bestId,
     id_level      = id_level,
-    input_df.     = dfOut,
+    input_df     = dfOut,
     mapped_df     = dfOut_mapped
     )
   }

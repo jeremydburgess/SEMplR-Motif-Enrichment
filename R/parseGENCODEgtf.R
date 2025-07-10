@@ -1,3 +1,9 @@
+library(readr)    # for read_tsv()
+library(dplyr)    # for filter(), mutate(), distinct(), pull()
+library(tidyr)    # for separate_rows()
+library(stringr)  # for str_squish(), str_count(), str_match(), str_match_all(), word()
+
+
 # parseGENCODEgtf: Read a GENCODE GTF and extract attributes into columns
 #
 # Args:
@@ -6,7 +12,8 @@
 #
 # Returns:
 #   A tibble with the standard GTF columns plus one column per attribute
-parseGENCODEgtf <- function(gtf_path = "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.annotation.gtf.gz", feature_types = c("gene","transcript")) {
+parseGENCODEgtf <- function(gtf_path = "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.annotation.gtf.gz",
+                            feature_types = c("gene","transcript")) {
   # 1. Read in the GTF
   message("1/6 ▶ Reading GTF...")
   raw_gtf <- read_tsv(
@@ -29,18 +36,6 @@ parseGENCODEgtf <- function(gtf_path = "https://ftp.ebi.ac.uk/pub/databases/genc
 
   # 3. Define all possible attribute keys
   message("3/6 ▶ Identifying possible attribute keys...")
-  # Hard coded
-  # fields <- c(
-  #   "gene_id", "gene_type", "gene_status", "gene_name",
-  #   "transcript_id", "transcript_type", "transcript_status", "transcript_name",
-  #   "exon_number", "exon_id", "level", "tag", "ccdsid",
-  #   "havana_gene", "havana_transcript", "protein_id", "ont",
-  #   "transcript_support_level", "remap_status", "remap_original_id",
-  #   "remap_original_location", "remap_num_mappings", "remap_target_status",
-  #   "remap_substituted_missing_target", "hgnc_id", "mgi_id"
-  # )
-
-  # Dynamic
   fields <- raw_gtf %>%
     separate_rows(attributes, sep = ";") %>%
     mutate(attributes = str_squish(attributes)) %>%

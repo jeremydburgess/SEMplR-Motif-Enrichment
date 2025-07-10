@@ -1,3 +1,9 @@
+library(readr)    # for read_tsv()
+library(dplyr)    # for filter(), mutate(), distinct(), pull()
+library(tidyr)    # for separate_rows()
+library(stringr)  # for str_squish(), str_count(), str_match(), str_match_all(), word()
+
+
 # annotateGTF: Add tag flags and external ID mappings to a parsed GTF tibble
 #
 # Args:
@@ -33,17 +39,6 @@ annotateGTF <- function(
 ) {
 
   df <- parsed_gtf
-
-  # # 1) Add requested tag flags
-  # message("1/5 ▶ Adding tag flag fields...")
-  # if (length(flags) > 0) {
-  #   for (f in flags) {
-  #     df <- df %>%
-  #       mutate(
-  #         !!f := if_else(!is.na(tag) & str_detect(tag, fixed(f)), 1L, 0L)
-  #       )
-  #   }
-  # }
 
   # 1) Add requested tag flags (with “flag_” prefix)
   message("1/6 ▶ Adding tag flag fields...")
@@ -83,7 +78,7 @@ annotateGTF <- function(
                      show_col_types = FALSE)
 
   message("4/6 ▶ Adding alternate id types...")
-  df %>%
+  df <- df %>%
     left_join(entrez, by = "transcript_id", relationship = "many-to-many") %>%
     left_join(hgnc,   by = "transcript_id", relationship = "many-to-many") %>%
     left_join(refseq, by = "transcript_id", relationship = "many-to-many") %>%

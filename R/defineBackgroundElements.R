@@ -9,7 +9,7 @@ library(ks) # for rejection method in matchRanges
 #' @param foreground_elements A GRanges of the target (foreground) regions.
 #' @param bsgenome A loaded BSgenome object, e.g. \code{BSgenome.Hsapiens.UCSC.hg38}.
 #' @param method One of \code{"pool"}, \code{"random"}, or \code{"matched"}.
-#' @param ...
+#'
 #' @return GRangesList with \code{backgroundElements} and \code{foregroundElements}.
 #' @export
 defineBackgroundElements <- function(

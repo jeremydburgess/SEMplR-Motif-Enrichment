@@ -12,7 +12,7 @@ library(stringr)  # for str_squish(), str_count(), str_match(), str_match_all(),
 #
 # Returns:
 #   A tibble with the standard GTF columns plus one column per attribute
-parseGENCODEgtf <- function(gtf_path = "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.annotation.gtf.gz",
+parseGENCODEgtf <- function(gtf_path,
                             feature_types = c("gene","transcript")) {
   # 1. Read in the GTF
   message("1/6 ▶ Reading GTF...")

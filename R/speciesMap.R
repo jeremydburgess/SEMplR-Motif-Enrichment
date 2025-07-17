@@ -10,13 +10,13 @@
     baseKey    = "ENTREZID"
   ),
 
-  At = list(
-    code       = "at",
-    common     = "arabidopsis",
-    latin      = "Arabidopsis thaliana",
-    orgdb_pkg  = "org.At.tair.db",
-    baseKey    = "TAIR"
-  ),
+  # At = list(
+  #   code       = "at",
+  #   common     = "arabidopsis",
+  #   latin      = "Arabidopsis thaliana",
+  #   orgdb_pkg  = "org.At.tair.db",
+  #   baseKey    = "TAIR"
+  # ),
 
   Bt = list(
     code       = "bt",
@@ -58,21 +58,21 @@
     baseKey    = "ENTREZID"
   ),
 
-  EcK12 = list(
-    code       = "eck12",
-    common     = "E. coli K12",
-    latin      = "Escherichia coli K12",
-    orgdb_pkg  = "org.EcK12.eg.db",
-    baseKey    = "ENTREZID"
-  ),
-
-  EcSakai = list(
-    code       = "ecsakai",
-    common     = "E. coli Sakai",
-    latin      = "Escherichia coli Sakai",
-    orgdb_pkg  = "org.EcSakai.eg.db",
-    baseKey    = "ENTREZID"
-  ),
+  # EcK12 = list(
+  #   code       = "eck12",
+  #   common     = "E. coli K12",
+  #   latin      = "Escherichia coli K12",
+  #   orgdb_pkg  = "org.EcK12.eg.db",
+  #   baseKey    = "ENTREZID"
+  # ),
+  #
+  # EcSakai = list(
+  #   code       = "ecsakai",
+  #   common     = "E. coli Sakai",
+  #   latin      = "Escherichia coli Sakai",
+  #   orgdb_pkg  = "org.EcSakai.eg.db",
+  #   baseKey    = "ENTREZID"
+  # ),
 
   Gg = list(
     code       = "gg",
@@ -106,13 +106,13 @@
     baseKey    = "ENTREZID"
   ),
 
-  Pf = list(
-    code       = "pf",
-    common     = "malaria parasite",
-    latin      = "Plasmodium falciparum",
-    orgdb_pkg  = "org.Pf.plasmo.db",
-    baseKey    = "ENTREZID"
-  ),
+  # Pf = list(
+  #   code       = "pf",
+  #   common     = "malaria parasite",
+  #   latin      = "Plasmodium falciparum",
+  #   orgdb_pkg  = "org.Pf.plasmo.db",
+  #   baseKey    = "ENTREZID"
+  # ),
 
   Pt = list(
     code       = "pt",
@@ -138,21 +138,21 @@
     baseKey    = "SGD"
   ),
 
-  Ss = list(
-    code       = "ss",
-    common     = "pig",
-    latin      = "Sus scrofa",
-    orgdb_pkg  = "org.Ss.eg.db",
-    baseKey    = "ENTREZID"
-  ),
+  # Ss = list(
+  #   code       = "ss",
+  #   common     = "pig",
+  #   latin      = "Sus scrofa",
+  #   orgdb_pkg  = "org.Ss.eg.db",
+  #   baseKey    = "ENTREZID"
+  # ),
 
-  Xl = list(
-    code       = "xl",
-    common     = "frog",
-    latin      = "Xenopus laevis",
-    orgdb_pkg  = "org.Xl.eg.db",
-    baseKey    = "ENTREZID"
-  )
+  # Xl = list(
+  #   code       = "xl",
+  #   common     = "frog",
+  #   latin      = "Xenopus laevis",
+  #   orgdb_pkg  = "org.Xl.eg.db",
+  #   baseKey    = "ENTREZID"
+  # )
 
 )
 

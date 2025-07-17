@@ -25,7 +25,7 @@ library(ks)
 # Parse gencode gtf
 gtf_path <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.annotation.gtf.gz"
 gtf_path <- "/Users/jeremy_burgess/Downloads/gencode.v48.annotation.gtf.gz" # Locally stored version
-gtf <- parseGENCODEgtf(feature_types = c("gene","transcript"))
+gtf <- parseGENCODEgtf(gtf_path = gtf_path,feature_types = c("gene","transcript"))
 
 # Add priority flags and alternate id types
 # gtf_map <- annotateGTF(gtf)

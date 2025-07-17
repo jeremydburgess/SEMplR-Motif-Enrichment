@@ -95,7 +95,25 @@ df <- AnnotationDbi::select(
 # 3) Inspect
 head(df)
 
+# 1. Get the combined CRAN+Bioconductor repo URLs
+repos <- BiocManager::repositories()
 
+# 2. Pull the current package list
+pkgs <- available.packages(repos = repos)
+
+# 3. Filter to any package whose name starts with “TxDb.”
+txdb_pkgs <- grep("^TxDb\\.", rownames(pkgs), value = TRUE)
+
+# 4. Inspect
+length(txdb_pkgs)
+# e.g. [1] 14
+txdb_pkgs
+# [1] "TxDb.Athaliana.BioMart.plantsmart25"  "TxDb.Celegans.UCSC.ce11.refGene"
+#      "TxDb.Dmelanogaster.UCSC.dm6.ensGene" ... etc.
+
+
+all_bioc <- BiocManager::available()
+txdb_pkgs <- grep("^TxDb\\.", all_bioc, value = TRUE)
 
 
 

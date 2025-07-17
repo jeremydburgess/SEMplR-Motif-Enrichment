@@ -17,7 +17,7 @@ buildMappingObject <- function(
               library(pkg, character.only = TRUE)
             }
 
-    # 1) figure out which TxDb’s are supported for this species
+    # 1) figure out which TxDb’s are supported for this organism
   so <- Organism.dplyr::supportedOrganisms()
   hits <- so %>% dplyr::filter(str_to_lower(organism) == str_to_lower(!!organism))
   if (nrow(hits)==0) {
@@ -73,6 +73,8 @@ buildMappingObject <- function(
   # ensure packages are loaded
   # later in your wrapper, after you’ve resolved orgdb and tx_choice:
   ensure_installed_and_loaded(orgdb)
+  orgdb_obj <- get(orgdb, envir = asNamespace(orgdb))
+
   ensure_installed_and_loaded(tx_choice)
 
 
@@ -81,5 +83,15 @@ buildMappingObject <- function(
     txdb     = tx_choice
   )
 
-  return(so_obj)
-}
+  so_obj <- Organism.dplyr::src_organism(txdb = tx_choice)
+
+  # Return *both* the data‐source objects *and* the parameters that created them
+  list(
+    so_obj      = so_obj,
+    orgdb       = orgdb_obj,    # the actual OrgDb, not its name
+    organism    = organism,
+    genomeBuild = genomeBuild,
+    txdb        = tx_choice
+  )
+
+  }

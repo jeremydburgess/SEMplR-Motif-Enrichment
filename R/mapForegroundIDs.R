@@ -1,9 +1,13 @@
 mapForegroundIDs <- function(foreground_ids,
-                             so_obj,
-                             threshold = 0.9,
-                             transcript = FALSE,
-                             stripVersions = TRUE,
-                             verbose = TRUE){
+                             mapping,
+                             threshold     = 0.9,
+                             transcript    = FALSE,
+                             stripVersions = TRUE
+                             ) {
+
+  # Pull out so_obj and and orgdb from mapping input list
+  so_obj <- mapping$so_obj
+  orgdb  <- mapping$orgdb
 
   # Strip Ensembl/RefSeq versions from foreground_ids if requested
   if (stripVersions) {
@@ -30,7 +34,7 @@ mapForegroundIDs <- function(foreground_ids,
     c("symbol","alias")
   }
 
-
+  message("attempting to map foreground_ids to high likelihood columns...")
   fast_cols   <- intersect(cand_all, guessCols(foreground_ids))
 
   stats_fast <- data.frame(
@@ -65,13 +69,13 @@ mapForegroundIDs <- function(foreground_ids,
     stats <- stats_fast
   } else {
     slow_cols <- setdiff(cand_all, fast_cols)
-    if (verbose) {
+
       message(
         "Fast‐guess only matched ",
         round(max(stats_fast$pct_matched), 1),
         "% → trying ", length(slow_cols), " more keytypes…"
       )
-    }
+
     stats_slow <- data.frame(
       id_type = slow_cols,
       matched = vapply(
@@ -107,12 +111,12 @@ mapForegroundIDs <- function(foreground_ids,
   if (best_pct < threshold*100) {
     stop("Unable to map ≥", threshold*100, "% of your IDs.")
   } else {
-  if (verbose) {
+
     message(sprintf(
       "Chosen keytype '%s' (%.1f%% matched).",
       best, best_pct
     ))
-  }
+
   }
           # Function to find the appropriate table to use for converting best mapped id
           chooseTable <- function(so_obj, best, transcript) {
@@ -198,11 +202,15 @@ mapForegroundIDs <- function(foreground_ids,
 
   }
   # Make output list
-    mapped <- list(fg_ids = fg_ids,
-                   bg_ids = bg_ids,
-                   userIDtype = best,
-                   transcript = transcript
-                   )
+  mapped <- c(
+    mapping,         # everything that came in (so_obj, orgdb, organism, genomeBuild, txdb, etc.)
+    list(
+      fg_ids     = fg_ids,
+      bg_ids     = bg_ids,
+      userIDtype = best,
+      transcript = transcript
+    )
+  )
 
   return(mapped)
 

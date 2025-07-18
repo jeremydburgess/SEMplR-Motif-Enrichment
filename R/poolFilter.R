@@ -43,7 +43,7 @@ poolFilter <- function(mapped,
     if (transcript) {
       # transcripts → genes map
       idtx <- tbl(so_obj, "id_transcript") %>%
-        filter(entrez %in% keep_genes) %>%
+        dplyr::filter(entrez %in% keep_genes) %>%
         dplyr::select(entrez, ensembltrans) %>%
         collect()
 
@@ -69,3 +69,5 @@ poolFilter <- function(mapped,
 
   return(mapped)
 }
+
+

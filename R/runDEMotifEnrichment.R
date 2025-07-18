@@ -5,7 +5,8 @@ runDEMotifEnrichment <- function(foreground_ids,
                                transcript    = FALSE,
                                geneType      = NULL,
                                threshold     = 0.9,
-                               stripVersions = TRUE
+                               stripVersions = TRUE,
+                               inflateThresh = 1
 
 ) {
   # 1) Build the mapping object (cheap metadata + package loads)
@@ -28,11 +29,12 @@ runDEMotifEnrichment <- function(foreground_ids,
 
   # 3) Map the user’s IDs — a bit heavier, but now we know geneType is valid
   mapped <- mapForegroundIDs(
-    foreground_ids = foreground_ids2,
+    foreground_ids = foreground_ids,
     mapping        = mapping,
     threshold      = threshold,
     transcript     = transcript,
-    stripVersions  = stripVersions
+    stripVersions  = stripVersions,
+    inflateThresh  = inflateThresh
   )
 
   # 4) Pool‐level filtering (this is pretty quick, once mapped is in memory)
@@ -62,5 +64,14 @@ runDEMotifEnrichment <- function(foreground_ids,
     }
   }, silent = TRUE)
 
+  return(filtered)
 
 }
+
+transcriptTrialTx <- runDEMotifEnrichment(foreground_ids, transcript = T) # Correctly provides X-row foreground id data table
+transcriptTrialGx <- runDEMotifEnrichment(foreground_ids, transcript = F) # Correctly provides X-row foreground id data table
+
+geneTrialTx <- runDEMotifEnrichment(foreground_ids2, transcript = T) # Correctly errors and asks for different id type
+geneTrialGx <- runDEMotifEnrichment(foreground_ids2, transcript = F)
+
+

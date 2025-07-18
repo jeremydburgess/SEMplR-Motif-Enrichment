@@ -4,7 +4,6 @@ getCoordinates <- function(mapped,
                            method = c(
                              "UCSCGene",
                              "EnsemblCanonical",
-                             "MANE_Select",
                              "commonTSS",
                              "uniqueTSS",
                              "allTSS",
@@ -41,10 +40,12 @@ getCoordinates <- function(mapped,
       tx_ids <- ids
     }
 
-    # If we get here, method is either EnsemblCanonical/MANE (which handle genes via ensdb)
+    # If we get here, method is EnsemblCanonical (which handle genes via ensdb)
     # or one of the TSS methods.
 
-    if (method %in% c("EnsemblCanonical","MANE_Select")) {
+
+
+    if (method == "EnsemblCanonical") {
       if (is.null(ensdb)) {
         stop("For method '", method, "' you must supply an `ensdb` object.")
       }

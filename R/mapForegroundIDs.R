@@ -2,7 +2,8 @@ mapForegroundIDs <- function(foreground_ids,
                              mapping,
                              threshold     = 0.9,
                              transcript    = FALSE,
-                             stripVersions = TRUE
+                             stripVersions = TRUE,
+                             inflateThresh = 1
                              ) {
 
   # Pull out so_obj and and orgdb from mapping input list
@@ -127,14 +128,21 @@ mapForegroundIDs <- function(foreground_ids,
             candidates <- tables[has_key]
 
             # priority rules:
+            # 1) If our key is ensembltrans, force the transcript table
+            if (best == "ensembltrans" && "id_transcript" %in% candidates) {
+              return("id_transcript")
+            }
+            # 2) If we're in transcript mode, prefer transcript table
             if (transcript && "id_transcript" %in% candidates) {
               return("id_transcript")
             }
+            # 3) Otherwise prefer the generic id (gene) table
             if ("id" %in% candidates) {
               return("id")
             }
-            if (length(candidates)) {
-              return(candidates[1])
+            # 4) Fallback to the first table that contains your key
+            if (length(candidates) > 0) {
+              return(candidates[[1]])
             }
             stop("No table contains column '", best, "'")
           }
@@ -142,7 +150,7 @@ mapForegroundIDs <- function(foreground_ids,
   # Identify best table to use for converting ids
   tbl_nm <- chooseTable(so_obj, best, transcript)
 
-    # Error is user is trying to use transcript mode on any id type except enstrans
+    # Error if user is trying to use transcript mode on any id type except ensembltrans
     if(transcript && best != "ensembltrans"){
       stop(
         "Transcript-level analysis only supported with Ensembl transcript IDs.\n",
@@ -151,56 +159,97 @@ mapForegroundIDs <- function(foreground_ids,
       )
     }
 
-  # What if user specifies gene level (transcript = FALSE) analysis but provides transcript level ids (ensembltrans)?
-  # Conceivable but rare. Warn and collapse to unique gene ids (entrez), retaining comma-separated
-  # mapped transcripts associated with that gene id as mappedID
-  if (!transcript && best == "ensembltrans") {
+  # Otherwise pull entrez id and best mapped id from appropriate table for both
+  # mapped ids (fg), and entire table population (bg)
 
+  # Foreground is only those records that map to foreground_ids
+  fg_ids <- tbl(so_obj, tbl_nm) %>%
+    dplyr::filter(!!sym(best) %in% foreground_ids) %>%
+    dplyr::select(entrez,mappedID = !!sym(best)) %>%
+    dplyr::distinct() %>%
+    dplyr::collect()
+
+  #Background pool is all records from that table
+  bg_ids <- tbl(so_obj, tbl_nm) %>%
+    dplyr::select(entrez,mappedID = !!sym(best)) %>%
+    dplyr::distinct() %>%
+    dplyr::collect()
+
+  # Ensure background pool is the same universe as foreground by dropping any rows
+  # with no available value for best mappedID type
+  bg_ids <- bg_ids %>%
+    dplyr::filter(!is.na(mappedID))
+
+  # What if user specified gene level analysis (transcript = FALSE) but
+  # foreground_ids provided are for transcripts.
+  # Conceivable but rare.
+  #
+  # Specifically detect most common version of that case (best = ensembltrans &
+  # transcript = FALSE and collapse by gene_id (entrez) (with warning).
+  #
+  # Additionally reverse the mapping (entrez -> mapped id) to detect other transcript-
+  # style ids by  1->many gene to mapped_id inflations and collapse these too (with warning).
+
+  doCollapse = FALSE
+  # test for ensembltrans + transcript = FALSE
+  if (!transcript && best == "ensembltrans") {
     warning(
       "You’ve mapped best to ", sQuote(best),
       " but requested gene-level analysis (transcript = FALSE).\n",
       "I will collapse transcripts → their parent genes for you, ",
-      "but please double-check that this\nis what you intend."
+      "but please double-check that this\nis what you intended."
     )
+    doCollapse = TRUE
+  } else if (!transcript){
 
-    # Pull and collapse transcript→gene for fg
-    fg_ids <- tbl(so_obj, "id_transcript") %>%
-      filter(ensembltrans %in% foreground_ids) %>%
-      dplyr::select(entrez, mappedID = ensembltrans) %>%
-      collect() %>%
-      group_by(entrez) %>%
-      summarise(
-        mappedID = paste(unique(mappedID), collapse = ","),
-        .groups = "drop"
-      )
+    # test for other instances of 1:many gene:foreground_id inflations
+    # reverse the mapping from the fg data
+    rev_df <- tbl(so_obj, tbl_nm) %>%
+      dplyr::filter(entrez %in% fg_ids$entrez) %>%     # raw user IDs not yet collapsed
+      dplyr::select(entrez, mappedID = !!sym(best)) %>%
+      dplyr::collect()
 
-    # Pull and collapse transcript→gene for bg
-    bg_ids <- tbl(so_obj, "id_transcript") %>%
-      dplyr::select(entrez, mappedID = ensembltrans) %>%
-      collect() %>%
-      group_by(entrez) %>%
-      summarise(
-        mappedID = paste(unique(mappedID), collapse = ","),
-        .groups = "drop"
-      )
-
-  } else {
-
-    # Otherwise (ie gene level analysis from gene level id) pull entrez id and best
-    # mapped id from appropriate table (1:1 mapping)
-
-    # Foreground is only those records that map to foreground_ids
-    fg_ids <- tbl(so_obj, tbl_nm) %>%
-      filter(!!sym(best) %in% foreground_ids) %>%
-      dplyr::select(entrez,mappedID = !!sym(best)) %>%
-      distinct() %>% collect()
-
-    #Background pool is all records from that table
-    bg_ids <- tbl(so_obj, tbl_nm) %>%
-      dplyr::select(entrez,mappedID = !!sym(best)) %>%
-      distinct() %>% collect()
-
+    # count genes, and mapped_ids and look for excessive inflation
+    nGenes   <- n_distinct(rev_df$entrez)
+    nMapped  <- n_distinct(rev_df$mappedID)
+    if (nGenes > 0) {
+      inflation <- nMapped / nGenes - 1
+    if (inflation > inflateThresh) {
+      warning(
+        sprintf(
+          paste0(
+            "You have requested gene-level analysis but it looks like the IDs provided\n",
+            "represent transcripts. Reverse mapping from gene ids back to your provided\n",
+            "ids inflates IDs by %.1f%% (%d mappedIDs for %d genes).\n\n",
+            "I will collapse transcripts → their parent genes for you, but please\n",
+            "double-check that this is what you intended."
+          ),
+          inflation * 100,
+          nMapped,
+          nGenes
+        ))
+      doCollapse <- TRUE
+      }
+    }
   }
+
+  # 4) If triggered, collapse both fg and bg by entrezid, retaining all mappedIDs
+  # as a coma-separaated string in mappedID
+  if (doCollapse) {
+    fg_ids <- fg_ids %>%
+      group_by(entrez) %>%
+      summarise(
+        mappedID = paste(unique(mappedID), collapse = ","),
+        .groups  = "drop"
+      )
+    bg_ids <- bg_ids %>%
+      group_by(entrez) %>%
+      summarise(
+        mappedID = paste(unique(mappedID), collapse = ","),
+        .groups  = "drop"
+      )
+  }
+
   # Make output list
   mapped <- c(
     mapping,         # everything that came in (so_obj, orgdb, organism, genomeBuild, txdb, etc.)

@@ -1,117 +1,158 @@
 getCoordinates <- function(mapped,
-                           fg_ids_df,
-                           bg_ids_df,
-                           method = c(
-                             "UCSCGene",
-                             "EnsemblCanonical",
+                           transcript = FALSE,
+                           TSS.method = c(
+                             "UCSCgene",
+                             "Ensembl_canonical",
                              "commonTSS",
                              "uniqueTSS",
-                             "allTSS",
-                             "earliestTSS"
-                           ),
-                           ensdb  = NULL
-) {
-  method     <- match.arg(method)
+                             "earliestTSS",
+                             "allTSS"
+                           )) {
+  TSS.method <- match.arg(TSS.method)
+
+  # unpack
+  fg_df      <- mapped$fg_ids      # data.frame(entrez, mappedID)
+  bg_df      <- mapped$bg_ids
   so_obj     <- mapped$so_obj
-  transcript <- mapped$transcript
+  transcript <- mapped$transcript   # logical flag
+  # (we assume mapped$ensdb already exists, if you need it)
+  edb        <- mapped$ensdb
 
-  # Internal helper: take a vector of IDs and produce GRanges
-  coords_for <- function(ids) {
-    # Gene vs transcript branch
-    if (!transcript) {
-      # UCSCGene is just ranges_gene
-      if (method == "UCSCGene") {
-        df <- tbl(so_obj, "ranges_gene") %>%
-          filter(id %in% ids) %>%
-          select(id, seqnames, start, end, strand) %>%
-          collect()
-        return(GenomicRanges::makeGRangesFromDataFrame(
-          df,
-          seqnames.field     = "seqnames",
-          start.field        = "start",
-          end.field          = "end",
-          strand.field       = "strand",
-          keep.extra.columns = TRUE
-        ))
-      }
-      # All other methods require transcripts → TSS logic
-      tx_ids <- ids
-    } else {
-      tx_ids <- ids
-    }
+  if (transcript) {
+    #
+    # === TRANSCRIPT‐LEVEL MODE ===
+    #
+    # 1) un-collapse mappedIDs → one row per tx_id
+    fg_tx <- tidyr::separate_rows(fg_df, mappedID, sep = ",") %>%
+      dplyr::rename(tx_id = mappedID)
+    bg_tx <- tidyr::separate_rows(bg_df, mappedID, sep = ",") %>%
+      dplyr::rename(tx_id = mappedID)
 
-    # If we get here, method is EnsemblCanonical (which handle genes via ensdb)
-    # or one of the TSS methods.
-
-
-
-    if (method == "EnsemblCanonical") {
-      if (is.null(ensdb)) {
-        stop("For method '", method, "' you must supply an `ensdb` object.")
-      }
-      txs <- ensembldb::transcripts(
-        ensdb,
-        columns = c("tx_id","gene_id","mane_select"),
-        filter  = TxIdFilter(tx_ids)
-      )
-      if (method == "EnsemblCanonical") {
-        sel <- ensembldb::selectCanonical(txs)
-      } else {
-        sel <- txs[txs$mane_select == TRUE, ]
-      }
-      return(GenomicRanges::granges(sel, use.mcols=TRUE))
-    }
-
-    # Otherwise we’re in one of the TSS methods
-    tx_df <- tbl(so_obj, "ranges_tx") %>%
-      filter(tx_id %in% tx_ids) %>%
-      select(
+    # 2) pull their full transcript ranges
+    tx_ranges <- tbl(so_obj, "ranges_tx") %>%
+      dplyr::filter(tx_id %in% bg_tx$tx_id) %>%
+      dplyr::select(
         tx_id,
         seqnames = tx_chrom,
         start    = tx_start,
         end      = tx_end,
         strand   = tx_strand
       ) %>%
-      collect() %>%
-      mutate(tss = if_else(strand == "+", start, end))
+      collect()
 
-    if (method != "allTSS") {
-      idtx <- tbl(so_obj, "id_transcript") %>%
-        filter(ensembltrans %in% tx_df$tx_id) %>%
-        select(entrez, ensembltrans) %>%
-        collect()
-      tx_df <- left_join(tx_df, idtx, by = c("tx_id" = "ensembltrans"))
-    }
+    # 3) restrict to just the foreground transcripts
+    fg_ranges <- dplyr::filter(tx_ranges, tx_id %in% fg_tx$tx_id)
 
-    tss_df <- switch(
-      method,
-      allTSS      = tx_df,
-      commonTSS   = {
-        counts <- tx_df %>% count(entrez, tss)
-        most   <- counts %>% group_by(entrez) %>% slice_max(n, with_ties=FALSE)
-        inner_join(most, tx_df, by=c("entrez","tss"))
-      },
-      uniqueTSS   = tx_df %>% distinct(entrez,tss,.keep_all=TRUE),
-      earliestTSS = tx_df %>% group_by(entrez) %>% slice_min(tss, with_ties=FALSE)
+    # 4) build GRanges for fg and bg
+    gr_bg <- GenomicRanges::makeGRangesFromDataFrame(
+      tx_ranges,
+      seqnames.field     = "seqnames",
+      start.field        = "start",
+      end.field          = "end",
+      strand.field       = "strand",
+      keep.extra.columns = TRUE
+    )
+    gr_fg <- GenomicRanges::makeGRangesFromDataFrame(
+      fg_ranges,
+      seqnames.field     = "seqnames",
+      start.field        = "start",
+      end.field          = "end",
+      strand.field       = "strand",
+      keep.extra.columns = TRUE
     )
 
-    GenomicRanges::GRanges(
-      seqnames = tss_df$seqnames,
-      ranges   = IRanges::IRanges(start = tss_df$tss, width = 1),
-      strand   = tss_df$strand,
-      tx_id    = tss_df$tx_id,
-      entrez   = tss_df$entrez,
-      tss      = tss_df$tss
-    )
+    return(list(bg=gr_bg, fg=gr_fg))
   }
 
-  # now apply to both sets
-  fg_gr <- coords_for(if (!transcript) fg_ids_df$entrez else fg_ids_df$mappedID)
-  bg_gr <- coords_for(if (!transcript) bg_ids_df$entrez else bg_ids_df$mappedID)
+  #
+  # === GENE‐LEVEL MODE ===
+  #
+  if (TSS.method == "UCSCgene") {
+    # just join to the gene ranges table
+    gene_ranges <- tbl(so_obj, "ranges_gene") %>%
+      dplyr::filter(entrez %in% bg_df$entrez) %>%
+      dplyr::select(
+        entrez,
+        seqnames = seqnames,
+        start,
+        end,
+        strand
+      ) %>%
+      collect()
 
-  # return both
-  list(
-    fg_gr = fg_gr,
-    bg_gr = bg_gr
+    fg_ranges <- gene_ranges[gene_ranges$entrez %in% fg_df$entrez, ]
+
+    gr_bg <- GenomicRanges::makeGRangesFromDataFrame(
+      gene_ranges, keep.extra.columns=TRUE
+    )
+    gr_fg <- GenomicRanges::makeGRangesFromDataFrame(
+      fg_ranges, keep.extra.columns=TRUE
+    )
+    return(list(bg=gr_bg, fg=gr_fg))
+  }
+
+  # for all other methods (they require transcript‐level TSS computations)
+  # 1) un-collapse bg → one tx_id per row, via the id_transcript map
+  bg_tx <- tidyr::separate_rows(bg_df, mappedID, sep = ",") %>%
+    dplyr::rename(tmpID = mappedID) %>%
+    # join to id_transcript to get tx_id
+    dplyr::inner_join(
+      tbl(so_obj, "id_transcript") %>%
+        dplyr::select(entrez, tx_id = ensembltrans) %>%
+        collect(),
+      by = c("entrez")
+    ) %>%
+    dplyr::select(entrez, tx_id)
+
+  # 2) if Ensembl_canonical, filter for only canonical transcripts in EnsDb
+  if (TSS.method == "Ensembl_canonical") {
+    can_tx <- ensembldb::transcripts(edb) %>%
+      as.data.frame() %>%
+      dplyr::filter(tx_is_canonical == TRUE) %>%
+      dplyr::pull(tx_id)
+    bg_tx <- dplyr::filter(bg_tx, tx_id %in% can_tx)
+  }
+
+  # 3) fetch full ranges for the (possibly filtered) tx_ids
+  tx_coords <- tbl(so_obj, "ranges_tx") %>%
+    dplyr::filter(tx_id %in% bg_tx$tx_id) %>%
+    dplyr::select(
+      tx_id,
+      seqnames = tx_chrom,
+      start    = tx_start,
+      end      = tx_end,
+      strand   = tx_strand
+    ) %>%
+    collect() %>%
+    # re‐attach entrez
+    dplyr::inner_join(bg_tx, by = "tx_id") %>%
+    dplyr::mutate(tss = ifelse(strand == "+", start, end))
+
+  # 4) apply the TSS‐method collapse (skip for 'allTSS')
+  tss_df <- switch(
+    TSS.method,
+    commonTSS   = tx_coords %>% dplyr::group_by(entrez) %>%
+      dplyr::slice_max(tabulate(tss), with_ties=TRUE), # keeps multiple if more than one max TSS frequency
+    uniqueTSS   = tx_coords %>% dplyr::group_by(entrez,tss) %>% dplyr::slice(1),
+    earliestTSS = tx_coords %>% dplyr::group_by(entrez) %>%
+      dplyr::slice_min(tss, with_ties=FALSE) # Only keeps,one of tied results
+    allTSS      = tx_coords
   )
+
+  # 5) build GRanges
+  gr_bg <- GenomicRanges::GRanges(
+    seqnames = tss_df$seqnames,
+    ranges   = IRanges::IRanges(start=tss_df$start
+                                end=tss_df$end),
+    strand   = tss_df$strand,
+    tx_id    = tss_df$tx_id,
+    entrez   = tss_df$entrez,
+    tss      = tss_df$tss
+  )
+  # filter FG down to those in fg_df
+  fg_ids_split <- tidyr::separate_rows(fg_df, mappedID, sep=",") %>%
+    dplyr::rename(tx_id = mappedID)
+  gr_fg <- gr_bg[gr_bg$tx_id %in% fg_ids_split$tx_id]
+
+  return(list(bg=gr_bg, fg=gr_fg))
 }

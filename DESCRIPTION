@@ -11,3 +11,15 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Depends: 
     R (>= 3.5)
+Imports: 
+    AnnotationDbi,
+    BiocManager,
+    DBI,
+    dplyr,
+    ensembldb,
+    GenomicRanges,
+    IRanges,
+    jamba,
+    magrittr,
+    Organism.dplyr,
+    stringr

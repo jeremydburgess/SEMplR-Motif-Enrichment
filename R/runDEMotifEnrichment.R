@@ -4,11 +4,22 @@ runDEMotifEnrichment <- function(foreground_ids,
                                txdb          = "auto",
                                transcript    = FALSE,
                                geneType      = NULL,
+                               TSS.method = c(
+                                 "UCSCgene",
+                                 "Ensembl_canonical",
+                                 "commonTSS",
+                                 "uniqueTSS",
+                                 "earliestTSS",
+                                 "allTSS"
+                               ),
                                threshold     = 0.9,
                                stripVersions = TRUE,
                                inflateThresh = 1
 
 ) {
+
+  TSS.method <- match.arg(TSS.method)
+
   # 1) Build the mapping object (cheap metadata + package loads)
   mapping <- buildMappingObject(
     organism    = organism,
@@ -67,11 +78,11 @@ runDEMotifEnrichment <- function(foreground_ids,
   return(filtered)
 
 }
-
-transcriptTrialTx <- runDEMotifEnrichment(foreground_ids, transcript = T) # Correctly provides X-row foreground id data table
-transcriptTrialGx <- runDEMotifEnrichment(foreground_ids, transcript = F) # Correctly provides X-row foreground id data table
-
-geneTrialTx <- runDEMotifEnrichment(foreground_ids2, transcript = T) # Correctly errors and asks for different id type
-geneTrialGx <- runDEMotifEnrichment(foreground_ids2, transcript = F)
+#
+# transcriptTrialTx <- runDEMotifEnrichment(foreground_ids, transcript = T) # Correctly provides X-row foreground id data table
+# transcriptTrialGx <- runDEMotifEnrichment(foreground_ids, transcript = F) # Correctly provides X-row foreground id data table
+#
+# geneTrialTx <- runDEMotifEnrichment(foreground_ids2, transcript = T) # Correctly errors and asks for different id type
+# geneTrialGx <- runDEMotifEnrichment(foreground_ids2, transcript = F)
 
 

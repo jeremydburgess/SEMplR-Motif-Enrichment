@@ -1,23 +1,52 @@
-# install.packages("jamba")
-# library(jamba)
-
+#' Build an organism-specific id-mapping object
+#'
+#' @description
+#' \code{buildMappingObject()} installs (if needed) and loads the appropriate
+#' \pkg{OrgDb} and \pkg{TxDb} Bioconductor packages for a given species and
+#' genome build, then returns an \code{src_organism} object along with metadata
+#' about which packages and parameters were used.
+#'
+#' @param organism Character scalar specifying the species, e.g. \dQuote{Homo sapiens}.
+#' @param genomeBuild Character scalar giving the genome build (e.g. \dQuote{hg38}),
+#'   or \dQuote{auto} (default) to pick the latest supported build.
+#' @param txdb Character scalar naming a specific \pkg{TxDb} package, or
+#'   \dQuote{auto} (default) to select the most recent \pkg{TxDb} for the build.
+#'
+#' @return A named list with components:
+#' \describe{
+#'   \item{so_obj}{An \code{src_organism} data source (from \pkg{Organism.dplyr}).}
+#'   \item{orgdb}{The loaded \pkg{OrgDb} package namespace object.}
+#'   \item{organism}{The species string used.}
+#'   \item{genomeBuild}{The resolved genome build string.}
+#'   \item{txdb}{The resolved \pkg{TxDb} package name.}
+#' }
+#'
+#' @examples
+#' \dontrun{
+#' mapping <- buildMappingObject(
+#'   organism    = "Homo sapiens",
+#'   genomeBuild = "auto",
+#'   txdb        = "auto"
+#' )
+#' so_obj <- mapping$so_obj
+#' }
+#'
+#' @seealso \code{\link[Organism.dplyr]{supportedOrganisms}},
+#'   \code{\link[Organism.dplyr]{src_organism}}
+#'
+#' @importFrom Organism.dplyr supportedOrganisms src_organism
+#' @importFrom stringr str_to_lower
+#' @importFrom dplyr filter pull
+#' @importFrom jamba mixedSort
+#' @export
 buildMappingObject <- function(
-    organism = "Homo sapiens",
-    genomeBuild = "auto",       # or NULL
-    txdb         = "auto")      # “auto” → pick latest for that build
+    organism    = "Homo sapiens",
+    genomeBuild = "auto",       # “auto” → pick latest for that organism
+    txdb        = "auto",      # “auto” → pick latest for that build
+    getEnsDb    = FALSE)      # Also load EnDb (used for Ensembl_canonical filtering later)
  {
 
-              # Function to install required bioconductor packages (orgDbs and txDbs)
-              ensure_installed_and_loaded <- function(pkg) {
-              if (!requireNamespace(pkg, quietly = TRUE)) {
-                message("Installing Bioconductor package ‘", pkg, "’ …")
-                BiocManager::install(pkg, ask = FALSE, update = FALSE)
-              }
-              # now load it
-              library(pkg, character.only = TRUE)
-            }
-
-    # 1) figure out which TxDb’s are supported for this organism
+  # 1) figure out which TxDb’s are supported for this organism
   so <- Organism.dplyr::supportedOrganisms()
   hits <- so %>% dplyr::filter(str_to_lower(organism) == str_to_lower(!!organism))
   if (nrow(hits)==0) {
@@ -69,13 +98,18 @@ buildMappingObject <- function(
 
   message("using TxDb: ",tx_choice)
 
+  # If necessary, check for and load EnsDb
+  ensdb <- NULL
+  if(getEnsDb) {
+    ensdb <- helper_loadEnsDbForOrganism(organism,genomeBuild)}
+
   # Check both orgDb and TxDbs are installed and call them into the memory
   # ensure packages are loaded
   # later in your wrapper, after you’ve resolved orgdb and tx_choice:
-  ensure_installed_and_loaded(orgdb)
+  helper_ensureInstalledAndLoadedBioC(orgdb)
   orgdb_obj <- get(orgdb, envir = asNamespace(orgdb))
 
-  ensure_installed_and_loaded(tx_choice)
+  helper_ensureInstalledAndLoadedBioC(tx_choice)
 
 
   # 6) now you can do
@@ -91,7 +125,8 @@ buildMappingObject <- function(
     orgdb       = orgdb_obj,    # the actual OrgDb, not its name
     organism    = organism,
     genomeBuild = genomeBuild,
-    txdb        = tx_choice
+    txdb        = tx_choice,
+    ensdb       = ensdb
   )
 
   }

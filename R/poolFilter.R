@@ -1,13 +1,38 @@
+#' Filter Foreground and Background ID Sets by Gene Type
+#'
+#' @description
+#' `poolFilter()` takes the mapped foreground and background ID data frames
+#' (as produced by `mapForegroundIDs()`) and, if requested, filters both sets
+#' to only include genes (or their transcripts) of a specified biotype
+#' (e.g. “protein-coding”).
+#'
+#' @param mapped    A list returned by `mapForegroundIDs()`, containing at least:
+#'   \itemize{
+#'     \item `fg_ids`: data.frame with columns `entrez` and `mappedID` (foreground).
+#'     \item `bg_ids`: data.frame with columns `entrez` and `mappedID` (background).
+#'     \item `so_obj`: a `src_organism` object for transcript lookups.
+#'     \item `orgdb`:  the loaded OrgDb package object.
+#'     \item `transcript`: logical, whether IDs are transcripts.
+#'   }
+#' @param geneType  Optional character scalar; if not NULL, only genes of this
+#'   biotype (`GENETYPE` in the OrgDb) will be retained.  Valid values vary by
+#'   organism (e.g. “protein-coding”, “lncRNA”, etc.).
+#'
+#' @return
+#' The original `mapped` list, but with `fg_ids` and `bg_ids` replaced by
+#' filtered versions (only rows matching `geneType`, if provided).
+#'
+#' @examples
+#' \dontrun{
+#' mapping  <- buildMappingObject("Homo sapiens")
+#' mapped   <- mapForegroundIDs(my_ids, mapping)
+#' filtered <- poolFilter(mapped, geneType = "protein-coding")
+#' }
+#'
+#' @importFrom dplyr tbl filter select collect
+#' @keywords internal
 poolFilter <- function(mapped,
                        geneType = NULL) {
-  # mapped: list from mapForegroundIDs(), containing
-  #   fg_ids     — data.frame(entrez, mappedID)
-  #   bg_ids     — data.frame(entrez, mappedID)
-  #   userIDtype — string
-  #   transcript — logical
-  #   so_obj     — src_organism
-  #   orgdb      — OrgDb package
-
   # unpack
   fg_df      <- mapped$fg_ids
   bg_df      <- mapped$bg_ids

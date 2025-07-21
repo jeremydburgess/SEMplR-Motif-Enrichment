@@ -1,3 +1,50 @@
+#' Map User IDs to Entrez and Determine Best Keytype
+#'
+#' Given a vector of user-supplied gene/transcript IDs, finds the AnnotationDbi
+#' keytype (e.g. ens, refseq, symbol, etc.) that maps the highest fraction of
+#' inputs, and returns both foreground and full background sets as Entrez IDs.
+#' Optionally collapses transcript‐style inputs to genes when requested or when
+#' reverse‐mapping inflation exceeds a threshold.
+#'
+#' @param foreground_ids Character vector of input IDs (e.g. ENSG, ENST, NM_*)
+#' @param mapping        A list from \code{buildMappingObject()}, containing:
+#'   \itemize{
+#'     \item \code{so_obj}: the \code{src_organism} object
+#'     \item \code{orgdb}:  the loaded OrgDb package object
+#'     \item \code{organism}, \code{genomeBuild}, \code{txdb}: parameters used
+#'   }
+#' @param threshold      Fraction in [0,1]; minimum mapping rate to accept a
+#'   keytype without falling back (default 0.9).
+#' @param transcript     Logical; if \code{TRUE}, analyze as transcript‐level IDs
+#'   (default \code{FALSE}).
+#' @param stripVersions  Logical; strip trailing “.1”, “.2” from IDs (default \code{TRUE}).
+#' @param inflateThresh  Fraction in [0,1]; if reverse‐mapping shows excessive inflation,
+#'   automatically collapse transcripts to genes (default 1 ie. 100%).
+#'
+#' @return
+#' A named list combining the original \code{mapping} components with:
+#' \describe{
+#'  \item{\code{fg_ids}}{data.frame(entrez, mappedID) for your foreground set}
+#'  \item{\code{bg_ids}}{data.frame(entrez, mappedID) for the full background}
+#'  \item{\code{userIDtype}}{the chosen keytype (e.g. "ensembl")}
+#'  \item{\code{transcript}}{logical, whether transcript‐level mapping was used}
+#' }
+#'
+#' @examples
+#' \dontrun{
+#'   mapping <- buildMappingObject("Homo sapiens")
+#'   out     <- mapForegroundIDs(
+#'     foreground_ids = c("ENSG00000139618","ENSG00000157764"),
+#'     mapping        = mapping
+#'   )
+#'   str(out)
+#' }
+#'
+#' @importFrom AnnotationDbi columns keytypes
+#' @importFrom dplyr tbl filter select distinct collect group_by summarise n_distinct
+#' @importFrom rlang sym
+#' @keywords internal
+#' @export
 mapForegroundIDs <- function(foreground_ids,
                              mapping,
                              threshold     = 0.9,
@@ -27,43 +74,21 @@ mapForegroundIDs <- function(foreground_ids,
   )
   cand_all <- setdiff(intersect(all_cols, valid_kts), non_id_fields)
 
-  # Heuristically guess likely id columns to attempt mapping with based on foreground_ids format
-  guessCols <- function(ul) {
-    if (all(grepl("^[0-9]+$", ul)))        return("entrezid")
-    if (all(grepl("^ENS(G|T|P)\\d+", ul))) return(c("ensembl","ensembltrans","ensemblprot"))
-    if (all(grepl("^(N[MRP]_)", ul)))      return("refseq")
-    c("symbol","alias")
-  }
-
   message("attempting to map foreground_ids to high likelihood columns...")
-  fast_cols   <- intersect(cand_all, guessCols(foreground_ids))
+  fast_cols   <- intersect(cand_all, helper_guessCols(foreground_ids))
 
   stats_fast <- data.frame(
     id_type = fast_cols,
-    matched = vapply(fast_cols, function(col) {
-      tryCatch(
-        {
-          # pull back the vector of mapped values
-          vals <- AnnotationDbi::select(
-            so_obj,
-            keys    = foreground_ids,
-            keytype = col,
-            columns = col
-          )
-          # count *distinct* mapped IDs
-          length(unique(vals))
-        },
-        error = function(e) NA_integer_
-      )
-    }, integer(1)),
+    matched = vapply(
+      fast_cols,
+      function(col) helper_countMapped(so_obj, foreground_ids, col),
+      integer(1)
+    ),
     stringsAsFactors = FALSE
   )
 
-
-  stats_fast$pct_matched <- stats_fast$matched / length(foreground_ids) * 100
-  stats_fast$pct_matched[is.na(stats_fast$pct_matched)] <- 0
-  stats_fast$matched[is.na(stats_fast$matched)] <- 0
-
+  # Calculate mapping percentages and convert NA -> 0
+  stats_fast <- helper_cleanStats(stats_fast)
 
   # If no successful mapping, try remaining columns
   if (max(stats_fast$pct_matched) >= threshold * 100) {
@@ -77,32 +102,20 @@ mapForegroundIDs <- function(foreground_ids,
         "% → trying ", length(slow_cols), " more keytypes…"
       )
 
-    stats_slow <- data.frame(
-      id_type = slow_cols,
-      matched = vapply(
-        slow_cols,
-        function(col) {
-          tryCatch(
-            {
-              vals <- AnnotationDbi::select(
-                so_obj,
-                keys    = foreground_ids,
-                keytype = col,
-                columns = col
-              )
-              length(unique(vals))
-            },
-            error = function(e) NA_integer_
-          )
-        },
-        integer(1)  # one integer per keytype
-      ),
-      stringsAsFactors = FALSE
-    )
-    stats_slow$pct_matched <- stats_slow$matched / length(foreground_ids) * 100
-    stats_slow$pct_matched[is.na(stats_slow$pct_matched)] <- 0
-    stats_slow$matched[is.na(stats_slow$matched)] <- 0
+      stats_slow <- data.frame(
+        id_type = slow_cols,
+        matched = vapply(
+          slow_cols,
+          function(col) helper_countMapped(so_obj, foreground_ids, col),
+          integer(1)
+        ),
+        stringsAsFactors = FALSE
+      )
 
+    # Calculate mapping percentages and convert NA -> 0
+    stats_slow <- helper_cleanStats(stats_slow)
+
+    # Combine fast and slow stats results
     stats <- rbind(stats_fast, stats_slow)
     }
 
@@ -119,36 +132,9 @@ mapForegroundIDs <- function(foreground_ids,
     ))
 
   }
-          # Function to find the appropriate table to use for converting best mapped id
-          chooseTable <- function(so_obj, best, transcript) {
-            tables <- src_tbls(so_obj)
-            has_key <- vapply(tables, function(tbl_nm) {
-              best %in% tbl_vars(tbl(so_obj, tbl_nm))
-            }, logical(1))
-            candidates <- tables[has_key]
-
-            # priority rules:
-            # 1) If our key is ensembltrans, force the transcript table
-            if (best == "ensembltrans" && "id_transcript" %in% candidates) {
-              return("id_transcript")
-            }
-            # 2) If we're in transcript mode, prefer transcript table
-            if (transcript && "id_transcript" %in% candidates) {
-              return("id_transcript")
-            }
-            # 3) Otherwise prefer the generic id (gene) table
-            if ("id" %in% candidates) {
-              return("id")
-            }
-            # 4) Fallback to the first table that contains your key
-            if (length(candidates) > 0) {
-              return(candidates[[1]])
-            }
-            stop("No table contains column '", best, "'")
-          }
 
   # Identify best table to use for converting ids
-  tbl_nm <- chooseTable(so_obj, best, transcript)
+  tbl_nm <- helper_chooseTable(so_obj, best, transcript)
 
     # Error if user is trying to use transcript mode on any id type except ensembltrans
     if(transcript && best != "ensembltrans"){
@@ -192,6 +178,7 @@ mapForegroundIDs <- function(foreground_ids,
 
   doCollapse = FALSE
   # test for ensembltrans + transcript = FALSE
+
   if (!transcript && best == "ensembltrans") {
     warning(
       "You’ve mapped best to ", sQuote(best),

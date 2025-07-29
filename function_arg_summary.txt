@@ -1,0 +1,21 @@
+buildMappingObject        : organism, genomeBuild, txdb, getEnsDb
+getCoordinates            : mapped, transcript, TSS.method, bgMethod, n_ratio, bgExcludeFgOverlaps, bgExcludeFgGenes, covariates, bgReplace, seed, nrMethod, bsGenome, promoterWindow, standardChroms, reduceOverlaps, overlapMinGap, onePromoterPerGene, ensDb
+helper_bsOrganismCode     : organism
+helper_chooseTable        : so_obj, best, transcript
+helper_cleanStats         : df
+helper_countMapped        : so_obj, keys, keytype
+helper_defineBackgroundElements : background_universe, foreground_elements, bgMethod, n_ratio, bgExcludeFgOverlaps, bgExcludeFgGenes, covariates, bgReplace, seed, nrMethod, bsGenome, organism, genomeBuild
+helper_ensureInstalledAndLoadedBioC : pkg
+helper_filterByEnsemblCanonical : df, ensdb
+helper_guessCols          : ul
+helper_loadEnsDbForOrganism : organism, genomeBuild
+helper_matchBackground    : pool, focal, organism, genomeBuild, bsgenome, covariates, nrMethod, bgReplace, seed
+helper_oneTxPerGene       : gr
+helper_randomBackground   : pool, focal, n_ratio, bgReplace, seed
+helper_reduceOverlapsWithinGenes : gr, overlapMinGap
+helper_resolveBSgenome    : organism, genomeBuild, bsMasking, suffix
+helper_selectCommonTSS    : df
+helper_selectFivePrimeTSS : df
+mapForegroundIDs          : foreground_ids, mapping, threshold, transcript, stripVersions, inflateThresh
+poolFilter                : mapped, geneType
+runDEMotifEnrichment      : foreground_ids, organism, genomeBuild, txdb, transcript, geneType, TSS.method, threshold, stripVersions, inflateThresh, standardChrom, overlapReduction, overlapMinGap, onePromoterPerGene

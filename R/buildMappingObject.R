@@ -38,6 +38,7 @@
 #' @importFrom stringr str_to_lower
 #' @importFrom dplyr filter pull
 #' @importFrom jamba mixedSort
+#' @importFrom magrittr %>%
 #' @export
 buildMappingObject <- function(
     organism    = "Homo sapiens",

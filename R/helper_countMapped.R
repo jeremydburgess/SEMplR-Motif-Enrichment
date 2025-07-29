@@ -21,9 +21,9 @@ helper_countMapped <- function(so_obj, keys, keytype) {
       keytype = keytype,
       columns = keytype
     )
-    length(unique(vals[[ keytype ]]))
+    length(unique(vals))
   }, error = function(e) {
     NA_integer_
   })
-  cnt
+  return(cnt)
 }

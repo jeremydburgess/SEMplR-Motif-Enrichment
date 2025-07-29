@@ -9,12 +9,18 @@ runDEMotifEnrichment <- function(foreground_ids,
                                  "Ensembl_canonical",
                                  "commonTSS",
                                  "uniqueTSS",
-                                 "earliestTSS",
+                                 "fivePrimeTSS",
                                  "allTSS"
                                ),
                                threshold     = 0.9,
                                stripVersions = TRUE,
-                               inflateThresh = 1
+                               inflateThresh = 1,
+                               standardChrom = TRUE,
+                               overlapReduction = TRUE,
+                               overlapMinGap = 0,
+                               onePromoterPerGene = TRUE
+
+
 
 ) {
 
@@ -25,6 +31,9 @@ runDEMotifEnrichment <- function(foreground_ids,
     organism    = organism,
     genomeBuild = genomeBuild,
     txdb        = txdb)
+
+
+  # mapping <- buildMappingObject("Homo sapiens",getEnsDb = TRUE)
 
   # 2) Early validate geneType against the OrgDb
   if (!is.null(geneType)) {
@@ -48,11 +57,16 @@ runDEMotifEnrichment <- function(foreground_ids,
     inflateThresh  = inflateThresh
   )
 
+  # mapped <- mapForegroundIDs(foreground_ids2, mapping, transcript = FALSE)
+
   # 4) Pool‐level filtering (this is pretty quick, once mapped is in memory)
   filtered <- poolFilter(
     mapped    = mapped,
     geneType  = geneType
   )
+
+  # filtered <- poolFilter(mapped,"protein-coding")
+
 
   # # 5) Coordinate extraction (lazy until collect, then quick)
   # coords <- getCoordinates(

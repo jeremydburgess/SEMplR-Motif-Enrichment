@@ -41,7 +41,7 @@
 #' }
 #'
 #' @importFrom AnnotationDbi columns keytypes
-#' @importFrom dplyr tbl filter select distinct collect group_by summarise n_distinct
+#' @importFrom dplyr tbl filter select distinct collect group_by n_distinct
 #' @importFrom rlang sym
 #' @keywords internal
 #' @export
@@ -171,22 +171,19 @@ mapForegroundIDs <- function(foreground_ids,
   # Conceivable but rare.
   #
   # Specifically detect most common version of that case (best = ensembltrans &
-  # transcript = FALSE and collapse by gene_id (entrez) (with warning).
+  # transcript = FALSE and warn they aey are losing transcript level coordinate specificity with this flag.
   #
   # Additionally reverse the mapping (entrez -> mapped id) to detect other transcript-
-  # style ids by  1->many gene to mapped_id inflations and collapse these too (with warning).
-
-  doCollapse = FALSE
-  # test for ensembltrans + transcript = FALSE
-
+  # style ids by  1->many gene to mapped_id inflations and warn again.
   if (!transcript && best == "ensembltrans") {
     warning(
-      "You’ve mapped best to ", sQuote(best),
-      " but requested gene-level analysis (transcript = FALSE).\n",
-      "I will collapse transcripts → their parent genes for you, ",
-      "but please double-check that this\nis what you intended."
+      "It looks like you provided Ensembl transcript IDs (", sQuote(best),
+      ") but requested gene‐level analysis (transcript = FALSE).\n",
+      "Any downstream coordinate lookup will use gene (Entrez) IDs, so you’ll lose\n",
+      "the per‐transcript specificity of your input. If you really want transcript-\n",
+      "level coordinates, set transcript = TRUE or supply Ensembl gene IDs instead."
     )
-    doCollapse = TRUE
+
   } else if (!transcript){
 
     # test for other instances of 1:many gene:foreground_id inflations
@@ -204,37 +201,18 @@ mapForegroundIDs <- function(foreground_ids,
     if (inflation > inflateThresh) {
       warning(
         sprintf(
-          paste0(
-            "You have requested gene-level analysis but it looks like the IDs provided\n",
-            "represent transcripts. Reverse mapping from gene ids back to your provided\n",
-            "ids inflates IDs by %.1f%% (%d mappedIDs for %d genes).\n\n",
-            "I will collapse transcripts → their parent genes for you, but please\n",
-            "double-check that this is what you intended."
-          ),
-          inflation * 100,
-          nMapped,
-          nGenes
-        ))
-      doCollapse <- TRUE
+          "Your IDs appear transcript‐like: reverse‐mapping shows %.1f%% more\n",
+          inflation * 100
+        ),
+        sprintf(
+          "(%d unique transcript IDs for %d genes). Downstream, only gene‐level\n",
+          nMapped, nGenes
+        ),
+        "coordinates will be used. If you need transcript‐level analyses, set\n",
+        "transcript = TRUE and use Ensembl transcript IDs."
+      )
       }
     }
-  }
-
-  # 4) If triggered, collapse both fg and bg by entrezid, retaining all mappedIDs
-  # as a coma-separaated string in mappedID
-  if (doCollapse) {
-    fg_ids <- fg_ids %>%
-      group_by(entrez) %>%
-      summarise(
-        mappedID = paste(unique(mappedID), collapse = ","),
-        .groups  = "drop"
-      )
-    bg_ids <- bg_ids %>%
-      group_by(entrez) %>%
-      summarise(
-        mappedID = paste(unique(mappedID), collapse = ","),
-        .groups  = "drop"
-      )
   }
 
   # Make output list

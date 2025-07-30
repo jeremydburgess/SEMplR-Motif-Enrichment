@@ -44,7 +44,7 @@ buildMappingObject <- function(
     organism    = "Homo sapiens",
     genomeBuild = "auto",       # “auto” → pick latest for that organism
     txdb        = "auto",      # “auto” → pick latest for that build
-    getEnsDb    = FALSE)      # Also load EnDb (used for Ensembl_canonical filtering later)
+    getEnsDb)      # Also load EnDb (used for Ensembl_canonical filtering later)
  {
 
   # 1) figure out which TxDb’s are supported for this organism
@@ -101,7 +101,7 @@ buildMappingObject <- function(
 
   # If necessary, check for and load EnsDb
   ensdb <- NULL
-  if(getEnsDb) {
+  if(isTRUE(getEnsDb)) {
     ensdb <- helper_loadEnsDbForOrganism(organism,genomeBuild)}
 
   # Check both orgDb and TxDbs are installed and call them into the memory

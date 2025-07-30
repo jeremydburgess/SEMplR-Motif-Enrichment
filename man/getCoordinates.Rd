@@ -6,7 +6,6 @@
 \usage{
 getCoordinates(
   mapped,
-  transcript = FALSE,
   TSS.method = c("UCSCgene", "Ensembl_canonical", "commonTSS", "uniqueTSS",
     "fivePrimeTSS", "allTSS"),
   bgMethod = c("pool", "random", "matched"),
@@ -22,17 +21,14 @@ getCoordinates(
   standardChroms = TRUE,
   reduceOverlaps = TRUE,
   overlapMinGap = 0,
-  onePromoterPerGene = TRUE,
-  ensDb = NULL
+  onePromoterPerGene = FALSE,
+  ensdb = NULL
 )
 }
 \arguments{
 \item{mapped}{A list as returned by \code{\link{mapForegroundIDs}()}, containing
 at least \code{fg_ids}, \code{bg_ids}, \code{so_obj}, \code{orgdb},
 \code{genomeBuild}, and \code{organism}.}
-
-\item{transcript}{Logical; \code{TRUE} for transcript‐level coordinates,
-\code{FALSE} for gene‐level.}
 
 \item{TSS.method}{Character(1). Method to pick TSS when \code{transcript=FALSE}:
 \code{"UCSCgene"}, \code{"Ensembl_canonical"}, \code{"commonTSS"},
@@ -74,6 +70,9 @@ any user‐provided \code{mcols()} column.}
 \item{overlapMinGap}{Numeric; minimum gap when reducing overlaps.}
 
 \item{onePromoterPerGene}{Logical; if \code{TRUE}, choose one promoter per gene.}
+
+\item{transcript}{Logical; \code{TRUE} for transcript‐level coordinates,
+\code{FALSE} for gene‐level.}
 
 \item{ensDb}{Optional \code{EnsDb} object; required for
 \code{TSS.method="Ensembl_canonical"}.}

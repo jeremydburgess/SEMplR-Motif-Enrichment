@@ -75,7 +75,7 @@
 #' @importFrom S4Vectors mcols
 #' @export
 getCoordinates <- function(mapped,
-                           transcript = FALSE,
+                           transcript,
                            TSS.method = c("UCSCgene","Ensembl_canonical",
                                           "commonTSS","uniqueTSS","fivePrimeTSS","allTSS"),
                            bgMethod             = c("pool", "random", "matched"),
@@ -91,8 +91,8 @@ getCoordinates <- function(mapped,
                            standardChroms       = TRUE,
                            reduceOverlaps       = TRUE,
                            overlapMinGap        = 0,
-                           onePromoterPerGene   = TRUE,
-                           ensDb                = NULL) {
+                           onePromoterPerGene   = FALSE,
+                           ensdb                = NULL) {
 
   TSS.method <- match.arg(TSS.method)
   bgMethod <- match.arg(bgMethod)
@@ -102,18 +102,18 @@ getCoordinates <- function(mapped,
   fg_df       <- mapped$fg_ids      # data.frame(entrez, mappedID)
   bg_df       <- mapped$bg_ids
   so_obj      <- mapped$so_obj
-  transcript  <- mapped$transcript   # logical flag
+ if(is.null(transcript)){transcript  <- mapped$transcript}   # logical flag
   genomeBuild <- mapped$genomeBuild
   organism    <- mapped$organism
 
   # first make sure we have an EnsDb if the user asked for Ensembl_canonical
   if (TSS.method == "Ensembl_canonical") {
-    if (is.null(ensDb) && !is.null(mapped$ensdb)) {
-      ensDb <- mapped$ensdb
+    if (is.null(ensdb) && !is.null(mapped$ensdb)) {
+      ensdb <- mapped$ensdb
     }
-    if (is.null(ensDb)) {
+    if (is.null(ensdb)) {
       # attempt to auto-load one via your helper
-      ensDb <- tryCatch(helper_loadEnsDbForOrganism(mapped$organism, mapped$genomeBuild),
+      ensdb <- tryCatch(helper_loadEnsDbForOrganism(mapped$organism, mapped$genomeBuild),
         error = function(err) {
           stop("TSS.method = 'Ensembl_canonical' requires an EnsDb object.\n",
             "No suitable EnsDb found for ", mapped$organism," + ", mapped$genomeBuild, ".") }
@@ -215,7 +215,7 @@ getCoordinates <- function(mapped,
   # NB no tie-breaking here, and multiple tss per gene are allowed
   tss_df <- switch(
     TSS.method,
-    Ensembl_canonical = helper_filterByEnsemblCanonical(bg_ranges,ensDb),
+    Ensembl_canonical = helper_filterByEnsemblCanonical(bg_ranges,ensdb),
     commonTSS   = helper_selectCommonTSS(bg_ranges),
     uniqueTSS   = bg_ranges %>% dplyr::group_by(entrez,tss) %>% dplyr::slice_head(n=1) %>% ungroup(),
     fivePrimeTSS = helper_selectFivePrimeTSS(bg_ranges), # if tied, just picks a single record
@@ -282,7 +282,9 @@ gr_bg <- GenomicRanges::makeGRangesFromDataFrame(
                                   bgReplace           = bgReplace,
                                   seed                = seed,
                                   nrMethod            = nrMethod,
-                                  bsGenome            = bsGenome)
+                                  bsGenome            = bsGenome,
+                                  organism            = organism,
+                                  genomeBuild         = genomeBuild)
 
 return(out)
 

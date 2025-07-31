@@ -75,10 +75,10 @@
 #' @importFrom S4Vectors mcols
 #' @export
 getCoordinates <- function(mapped,
-                           transcript,
+                           transcript = NULL,
                            TSS.method = c("UCSCgene","Ensembl_canonical",
                                           "commonTSS","uniqueTSS","fivePrimeTSS","allTSS"),
-                           bgMethod             = c("pool", "random", "matched"),
+                           bgMethod             = c("matched","pool","random"),
                            n_ratio              = 1,
                            bgExcludeFgOverlaps  = TRUE,
                            bgExcludeFgGenes     = FALSE,
@@ -256,15 +256,29 @@ gr_bg <- GenomicRanges::makeGRangesFromDataFrame(
     use.names  = TRUE
   )
 
+  # ── sanity check for transcript mode ─────────────────────────────
+  # 1) Ensure these are single TRUE/FALSE values
+  reduceOverlaps     <- isTRUE(reduceOverlaps)
+  onePromoterPerGene <- isTRUE(onePromoterPerGene)
+
+    if (transcript && (reduceOverlaps || onePromoterPerGene)) {
+    stop(
+      "reduceOverlaps=TRUE and/or onePromoterPerGene=TRUE only ",
+      "makes sense for gene‐level analysis (transcript=FALSE). ",
+      "Please rerun with transcript=FALSE to use those options."
+    )
+  }
 
 # (optional) merge any overlapping promoter windows within each set
   if (reduceOverlaps) {
+    message("Combining overlapping promoter ranges within genes...")
     prom_bg <- helper_reduceOverlapsWithinGenes(prom_bg,overlapMinGap)
     prom_fg <- helper_reduceOverlapsWithinGenes(prom_fg,overlapMinGap)
   }
 
   # (optional) enforce one promoter per gene: choose the widest window, break ties with 5'-most
   if (onePromoterPerGene) {
+    message("Restricting to one promoter range per gene...")
     prom_bg <- helper_oneTxPerGene(prom_bg)
     prom_fg <- helper_oneTxPerGene(prom_fg)
   }

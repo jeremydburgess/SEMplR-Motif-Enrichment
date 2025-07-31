@@ -83,8 +83,7 @@ helper_matchBackground <- function(
     mcols(pool)$promoterWidth  <- width(pool)
     mcols(focal)$promoterWidth <- width(focal)
     covariates[covariates == "width"] <- "promoterWidth"
-  }
-
+}
   # If both seqnames & chromosome were requested, drop seqnames
   if (all(c("seqnames", "chromosome") %in% covariates)) {
     covariates <- setdiff(covariates, "seqnames")

@@ -44,7 +44,7 @@ buildMappingObject <- function(
     organism    = "Homo sapiens",
     genomeBuild = "auto",       # “auto” → pick latest for that organism
     txdb        = "auto",      # “auto” → pick latest for that build
-    getEnsDb)      # Also load EnDb (used for Ensembl_canonical filtering later)
+    getEnsDb    = FALSE)      # Also load EnDb (used for Ensembl_canonical filtering later)
  {
 
   # 1) figure out which TxDb’s are supported for this organism

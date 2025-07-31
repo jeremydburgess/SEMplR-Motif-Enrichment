@@ -33,6 +33,8 @@
 #' @keywords internal
 poolFilter <- function(mapped,
                        geneType = NULL) {
+
+
   # unpack
   fg_df      <- mapped$fg_ids
   bg_df      <- mapped$bg_ids

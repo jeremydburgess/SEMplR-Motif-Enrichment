@@ -26,3 +26,4 @@ helper_guessCols <- function(ul) {
   if (all(grepl("^(N[MRP]_)", ul)))      return("refseq")
   c("symbol","alias")
 }
+

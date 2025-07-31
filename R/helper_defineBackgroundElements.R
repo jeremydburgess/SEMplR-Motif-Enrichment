@@ -68,11 +68,23 @@ helper_defineBackgroundElements <- function(
   selectedBg <- switch(
     bgMethod,
     pool = {background_universe},
-    random = {helper_randomBackground(
-      background_universe, foreground_elements,n_ratio,bgReplace,seed)},
+
+     random = {helper_randomBackground(pool = background_universe,
+                                       focal = foreground_elements,
+                                       n_ratio = n_ratio,
+                                       bgReplace = bgReplace,
+                                       seed = seed)},
+
     matched = {
-      helper_matchBackground(background_universe,foreground_elements,organism,
-                             genomeBuild,bsGenome,covariates,nrMethod,bgReplace,seed)}
+      helper_matchBackground(pool = background_universe,
+                             focal = foreground_elements,
+                             organism = organism,
+                             genomeBuild = genomeBuild,
+                             bsgenome = bsGenome,
+                             covariates = covariates,
+                             nrMethod = nrMethod,
+                             bgReplace = bgReplace,
+                             seed = seed)}
   )
 
   # Standardize into bg_gr and capture full matchObject if present

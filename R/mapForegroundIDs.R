@@ -46,11 +46,11 @@
 #' @keywords internal
 #' @export
 mapForegroundIDs <- function(foreground_ids,
-                             mapping,
-                             threshold     = 0.9,
-                             transcript    = FALSE,
-                             stripVersions = TRUE,
-                             inflateThresh = 1
+                             mapping,                 # Carries through parameters from previous function
+                             threshold     = 0.9,     # Minimum acceptable proportion of mapped ids
+                             transcript    = FALSE,   # Transcript/gene level analysis (default gene)
+                             stripVersions = TRUE,    # Remove patch numbers from ensembl/refseq ids for mapping
+                             inflateThresh = 1        # threshold used to test if transcripts being incorrectly treated as genes
                              ) {
 
   # Pull out so_obj and and orgdb from mapping input list

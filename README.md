@@ -133,19 +133,6 @@ sets <- enrichmentSets(
 
 ---
 
-### Next Steps
-
-Once you have your `fgRanges` and `bgRanges`, hand them over to SEMplR’s motif-scanning/enrichment functions:
-
-```r
-library(SEMplR)
-results <- SEMplR::runEnrichment(
-  foreground = sets$fg,
-  background = sets$bg,
-  motif_db   = my_motif_collection
-)
-```
-
 ---
 
 *(This module is under active development. If you bump into any edge cases or want to tweak the filtering or promoter definitions, please open an issue or PR in this repo.)*

@@ -1,146 +1,151 @@
-# GENCODE Promoter-Extraction Workflow Primer
+## SEMplR-Motif-Enrichment
 
-This primer describes the end-to-end pipeline for extracting promoter regions from GENCODE annotations, mapping user-supplied gene/transcript IDs, and preparing foreground TSS windows for motif enrichment.
-
----
-
-## 1. parseGENCODEgtf.R → `parseGENCODEgtf()`
-
-**Purpose:**
-
-- Read a (gzipped) GENCODE GTF, subset to specified feature types (`gene`, `transcript`), and split the final `attributes` column into one tidy column per key.
-- Collapse multi-valued keys (e.g. `tag`, `ont`) with `|`.
-
-**Inputs:**
-
-- `gtf_path`: file path or URL to `.gtf(.gz)`
-- `feature_types`: character vector to keep (default `c("gene","transcript")`)
-
-**Output:**
-
-- Tibble with the 8 standard GTF columns plus one column per attribute key.
+**Purpose:**  
+Provide a streamlined pipeline for taking an arbitrary list of differentially expressed IDs, mapping them to a universal ID space, extracting promoter regions (with overlap‐handling, background selection, etc.), and handing off to SEMplR’s core motif‐enrichment routines.
 
 ---
 
-## 2. annotateGTF.R → `annotateGTF()`
+### Pipeline Overview
 
-**Purpose:**
+1. **buildMappingObject()**  
+   Instantiate an `src_organism` object by loading the appropriate `OrgDb` and `TxDb` for the user-specified organism.
 
-- Extend the parsed GTF tibble with:
-  - Boolean `flag_<TAG>` columns for selected tags (default: `GENCODE_Primary`, `Ensembl_canonical`, `MANE_Select`, `MANE_Plus_Clinical`).
-  - `gene_id_base` and `transcript_id_base` (version-stripped IDs).
-  - `unique_id` (row number).
-  - External IDs via left joins to GENCODE Entrez, HGNC, and RefSeq metadata.
-  - A unified `TSS` column computed from `start`/`end` and `strand`.
+2. **mapForegroundIds()**  
+   - Detect which user‐supplied ID type (e.g. SYMBOL, ENSEMBL, etc.) matches best.  
+   - Map to Entrez IDs.  
+   - Construct initial “foreground” and “background universe” vectors of Entrez IDs.
 
-**Inputs:**
+3. **poolFilter()**  
+   Subset the universe (foreground + background) to a desired gene type (e.g. protein-coding) or transcript feature, based on user settings.
 
-- `parsed_gtf`: output of `parseGENCODEgtf()`
-- `flags`: vector of tags to flag (defaults above)
+4. **getCoordinates()**  
+   - Pull genomic ranges from the TxDb.  
+   - Define promoters (e.g. ±2 kb from TSS, or user-defined).  
+   - Handle overlaps (merge or trim).  
+   - Reduce multiple transcripts per gene to a single range (if requested).  
+   - Sample a background set of promoters matched by length/GC content.  
+   - Return final `GRanges` objects:  
+     - `fgRanges` (foreground promoters)  
+     - `bgRanges` (background promoters)
 
-**Output:**
-
-- Tibble with all parsed columns plus the new annotations and `TSS`.
-
----
-
-## 3. computeMatchStats.R → `compute_match_stats()`
-
-**Purpose:**
-
-- For each candidate ID column, calculate how many of the user’s IDs match and the percentage mapped.
-
-**Inputs:**
-
-- `user_list`: character vector of IDs to map
-- `map_df`: annotated GTF tibble
-- `idCols`: optional override of columns to test
-
-**Output:**
-
-- Data frame with rows per `id_type`, and columns `matched`, `total`, `pct_matched`, `match_str`.
+5. **enrichmentSets()**  
+   A wrapper that ties all of the above together and returns a list of `GRanges` ready for SEMplR’s enrichment engine.
 
 ---
 
-## 4. mapUserList.R → `mapUserList()`
+### Exported Functions
 
-**Purpose:**
+Below is a quick list of the key user-facing functions in **R/**:
 
-- Run `compute_match_stats()`, pick the best-matching column, determine `id_level` (`gene` vs `transcript`), and subset the annotated GTF to only those matching rows.
-- Add `mappedInput_id` (the original matched ID) and ensure `TSS` exists.
-
-**Inputs:**
-
-- `user_list`, `map_df`, optional `idCols`, `threshold` (default 0.9)
-
-**Output:**
-
-- List with elements:
-  - `match_stats`, `best_id_type`, `id_level`, `mapped_df` (the subset tibble).
+| Function               | Description                                                                                             |
+|------------------------|---------------------------------------------------------------------------------------------------------|
+| `buildMappingObject()` | Given `organism` (e.g. `"Homo sapiens"`) and optional database paths, loads OrgDb & TxDb into a single `src_organism`. |
+| `mapForegroundIds()`   | Maps your DE IDs to EntrezIDs, picks best ID type, and builds initial foreground & background ID vectors. |
+| `poolFilter()`         | Filters your universe to a specific gene/transcript category (e.g. `"protein_coding"`).                |
+| `getCoordinates()`     | Extracts promoter `GRanges` for each gene, resolves overlaps, selects background matches.               |
+| `enrichmentSets()`     | High-level wrapper that runs the full pipeline and returns a named list `list(fg = fgRanges, bg = bgRanges)`. |
 
 ---
 
-## 5. assembleTSSforeground.R → `assembleTSSforeground()`
-
-**Purpose:**
-
-- From the `mapUserList()` output, build a foreground TSS table according to a `gene_filter` strategy:
-  - `gene`: keep gene entries.
-  - `flag:<TAG>`: keep transcripts with `flag_<TAG> == 1`.
-  - `modalTSS`: one TSS per gene at the most-frequent coordinate.
-  - `uniqueTSS`: one row per distinct TSS per gene.
-  - `allTSS`: all transcript TSSs.
-
-**Inputs:**
-
-- `mapped_data` (list from `mapUserList()`)
-- `id_level = c("auto","gene","transcript")`
-- `gene_filter` (see above)
-
-**Output:**
-
-- Tibble of `unique_id`, `seqnames`, `TSS`, `strand` (and any flag columns) ready for promoter region calculation.
-
----
-
-## 6. definePromoterRegions.R → `definePromoterRegions()`
-
-**Purpose:**
-
-- Convert a TSS tibble into a **GRanges** of promoter windows (e.g. -1 kb/+100 bp), preserving metadata (e.g. `gene_id`, `unique_id`).
-
-**Inputs:**
-
-- Tibble with `seqnames`, `strand`, `TSS`, plus extra columns.
-- `region = c(upstream, downstream)` offsets in bp.
-
-**Output:**
-
-- `GRanges` object with ranges `[TSS–up, TSS+down]` (strand-aware) and metadata columns.
-
----
-
-## 7. RunPipeline.R (Example Script)
-
-Demonstrates end-to-end usage:
+### Usage Example
 
 ```r
-source("parseGENCODEgtf.R")
-source("annotateGTF.R")
-source("computeMatchStats.R")
-source("mapUserList.R")
-source("assembleTSSforeground.R")
-source("definePromoterRegions.R")
+library(SEMplR.Motif.Enrichment)
 
-gtf_raw  <- parseGENCODEgtf(gtf_path)
-gtf_map  <- annotateGTF(gtf_raw)
-# Randomly select 500 gene_ids as the user-supplied list
-set.seed(123)  # for reproducibility
-user_list <- gtf_map$gene_id[sample.int(nrow(gtf_map), 500, replace = FALSE)]
+# 1) Create the mapping object for human
+so <- buildMappingObject(
+  organism = "Homo sapiens",
+  txdb     = "TxDb.Hsapiens.UCSC.hg38.knownGene",
+  orgdb    = "org.Hs.eg.db"
+)
 
-#  Run mapping and assemble promoter regions
-mapped   <- mapUserList(user_list, gtf_map)
-fg_tss   <- assembleTSSforeground(mapped)
-fg_prom  <- definePromoterRegions(fg_tss, region = c(300,50))
+# 2) Map your DE results (e.g. gene symbols) to Entrez + background
+mapped <- mapForegroundIds(
+  so,
+  foreground_ids = c("BRCA1", "TP53", "MYC"),
+  id_type        = NULL    # auto‐detect
+)
 
+# 3) Filter to protein-coding genes only
+filtered <- poolFilter(
+  mapped,
+  gene_type = "protein_coding"
+)
+
+# 4) Get promoter GRanges (±2 kb around TSS)
+coords <- getCoordinates(
+  so,
+  filtered,
+  promoter_upstream   = 2000,
+  promoter_downstream = 2000,
+  overlap_action      = "reduce",
+  collapse_method     = "onePerGene",
+  n_background        = 1000
+)
+
+# coords$fg  # foreground GRanges
+# coords$bg  # background GRanges
+
+# 5) Or just do it all in one go:
+sets <- enrichmentSets(
+  organism           = "Homo sapiens",
+  foreground_ids     = my_de_gene_list,
+  gene_type          = "protein_coding",
+  promoter_upstream   = 2000,
+  promoter_downstream = 2000,
+  n_background        = 1000
+)
 ```
+
+---
+
+### Function Details
+
+#### `buildMappingObject(organism, txdb, orgdb, ...)`  
+- **organism**: full species name, e.g. `"Mus musculus"`  
+- **txdb** / **orgdb**: package names (or file paths) for TxDb and OrgDb  
+- Loads both and returns an S4 object containing both DB connections.
+
+#### `mapForegroundIds(so, foreground_ids, id_type = NULL, ...)`  
+- **so**: the object from `buildMappingObject()`  
+- **foreground_ids**: character vector of IDs from your DE analysis  
+- **id_type**: if `NULL`, auto‐detect among keys in the OrgDb  
+- Returns a list with at least:  
+  - `fg_entrez` (mapped foreground Entrez IDs)  
+  - `bg_entrez` (all Entrez in the universe)
+
+#### `poolFilter(mapped, gene_type = NULL, transcript_type = NULL)`  
+- **mapped**: output of `mapForegroundIds()`  
+- **gene_type** / **transcript_type**: e.g. `"protein_coding"`, vector of types  
+- Returns a filtered version of the mapped list, with `fg_entrez` and `bg_entrez` restricted.
+
+#### `getCoordinates(so, mapped, promoter_upstream, promoter_downstream, overlap_action = c("reduce","trim"), collapse_method = c("onePerGene","keepAll"), n_background = 1000, ...)`  
+- **promoter_upstream/downstream**: numeric in bp  
+- **overlap_action**: how to handle overlapping ranges  
+- **collapse_method**: how to reduce multiple transcripts per gene  
+- **n_background**: number of background ranges to sample, matched on length/GC  
+- Returns a list:  
+  - `fgRanges`: `GRanges` for foreground promoters  
+  - `bgRanges`: `GRanges` for matched background promoters
+
+#### `enrichmentSets(...)`  
+- A convenience wrapper. All of the above arguments can be passed directly to this single function to get your final `fg` and `bg` GRanges.
+
+---
+
+### Next Steps
+
+Once you have your `fgRanges` and `bgRanges`, hand them over to SEMplR’s motif-scanning/enrichment functions:
+
+```r
+library(SEMplR)
+results <- SEMplR::runEnrichment(
+  foreground = sets$fg,
+  background = sets$bg,
+  motif_db   = my_motif_collection
+)
+```
+
+---
+
+*(This module is under active development. If you bump into any edge cases or want to tweak the filtering or promoter definitions, please open an issue or PR in this repo.)*

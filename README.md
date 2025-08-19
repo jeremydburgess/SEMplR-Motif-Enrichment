@@ -1,7 +1,9 @@
 ## SEMplR-Motif-Enrichment
 
 **Purpose:**  
-Provide a streamlined pipeline for taking an arbitrary list of differentially expressed IDs, mapping them to a universal ID space, extracting promoter regions (with overlap‐handling, background selection, etc.), and handing off to SEMplR’s core motif‐enrichment routines.
+Provide a streamlined pipeline for taking an arbitrary list of differentially expressed IDs,
+mapping them to a universal ID space, extracting promoter regions (with overlap‐handling,
+background selection, etc.), and handing off to SEMplR’s core motif‐enrichment routines.
 
 ---
 

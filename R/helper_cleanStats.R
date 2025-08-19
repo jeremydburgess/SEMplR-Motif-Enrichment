@@ -10,6 +10,7 @@
 #'   \describe{
 #'     \item{\code{matched}}{Integer count of mapped IDs per keytype.}
 #'   }
+#' @param input_ids vector of the ids used for mapping
 #'
 #' @return
 #' The same data.frame, with two modifications:
@@ -25,8 +26,8 @@
 #'
 #' @keywords internal
 #' @export
-helper_cleanStats <- function(df) {
-  df$pct_matched <- df$matched / length(foreground_ids) * 100
+helper_cleanStats <- function(df,input_ids) {
+  df$pct_matched <- df$matched / length(input_ids) * 100
   df$pct_matched[is.na(df$pct_matched)] <- 0
   df$matched[is.na(df$matched)] <- 0
   df

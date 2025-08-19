@@ -7,7 +7,7 @@
 poolFilter(mapped, geneType = NULL)
 }
 \arguments{
-\item{mapped}{A list returned by \code{mapForegroundIDs()}, containing at least:
+\item{mapped}{A list returned by \code{mapIDs()}, containing at least:
 \itemize{
 \item \code{fg_ids}: data.frame with columns \code{entrez} and \code{mappedID} (foreground).
 \item \code{bg_ids}: data.frame with columns \code{entrez} and \code{mappedID} (background).
@@ -26,14 +26,14 @@ filtered versions (only rows matching \code{geneType}, if provided).
 }
 \description{
 \code{poolFilter()} takes the mapped foreground and background ID data frames
-(as produced by \code{mapForegroundIDs()}) and, if requested, filters both sets
+(as produced by \code{mapIDs()}) and, if requested, filters both sets
 to only include genes (or their transcripts) of a specified biotype
 (e.g. “protein-coding”).
 }
 \examples{
 \dontrun{
 mapping  <- buildMappingObject("Homo sapiens")
-mapped   <- mapForegroundIDs(my_ids, mapping)
+mapped   <- mapIDs(my_ids, mapping)
 filtered <- poolFilter(mapped, geneType = "protein-coding")
 }
 

@@ -6,9 +6,10 @@
 \usage{
 getCoordinates(
   mapped,
+  transcript = NULL,
   TSS.method = c("UCSCgene", "Ensembl_canonical", "commonTSS", "uniqueTSS",
     "fivePrimeTSS", "allTSS"),
-  bgMethod = c("pool", "random", "matched"),
+  bgMethod = c("matched", "pool", "random"),
   n_ratio = 1,
   bgExcludeFgOverlaps = TRUE,
   bgExcludeFgGenes = FALSE,
@@ -26,9 +27,12 @@ getCoordinates(
 )
 }
 \arguments{
-\item{mapped}{A list as returned by \code{\link{mapForegroundIDs}()}, containing
+\item{mapped}{A list as returned by \code{\link{mapIDs}()}, containing
 at least \code{fg_ids}, \code{bg_ids}, \code{so_obj}, \code{orgdb},
 \code{genomeBuild}, and \code{organism}.}
+
+\item{transcript}{Logical; \code{TRUE} for transcript‐level coordinates,
+\code{FALSE} for gene‐level.}
 
 \item{TSS.method}{Character(1). Method to pick TSS when \code{transcript=FALSE}:
 \code{"UCSCgene"}, \code{"Ensembl_canonical"}, \code{"commonTSS"},
@@ -71,9 +75,6 @@ any user‐provided \code{mcols()} column.}
 
 \item{onePromoterPerGene}{Logical; if \code{TRUE}, choose one promoter per gene.}
 
-\item{transcript}{Logical; \code{TRUE} for transcript‐level coordinates,
-\code{FALSE} for gene‐level.}
-
 \item{ensDb}{Optional \code{EnsDb} object; required for
 \code{TSS.method="Ensembl_canonical"}.}
 }
@@ -99,7 +100,7 @@ to the chosen \code{TSS.method}.
 \examples{
 \dontrun{
 mapping <- buildMappingObject("Homo sapiens")
-mapped  <- mapForegroundIDs(my_ids, mapping)
+mapped  <- mapIDs(my_ids, mapping)
 filtered <- poolFilter(mapped, geneType="protein-coding")
 coords <- getCoordinates(
   filtered,

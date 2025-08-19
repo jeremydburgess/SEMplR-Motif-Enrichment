@@ -6,7 +6,7 @@
 #' promoter regions plus matched background sets for downstream motif
 #' enrichment.  It performs:
 #' 1. ID mapping via \code{\link{buildMappingObject}()} and
-#'    \code{\link{mapForegroundIDs}()}.
+#'    \code{\link{mapIDs}()}.
 #' 2. Optional biotype filtering via \code{\link{poolFilter}()}.
 #' 3. Promoter coordinate extraction via \code{\link{getCoordinates}()}.
 #' 4. Background sampling (pool, random, or matched) within that same call.
@@ -91,15 +91,17 @@
 #' @importFrom stringr str_to_lower
 #' @importFrom DBI dbDisconnect
 #' @export
-enrichmentSets <- function(foreground_ids, # mapForegroundIds
+enrichmentSets <- function(foreground_ids, # mapIds
+                           background_ids        = NULL,
+                           id_type               = "auto",
                            organism              = "Homo sapiens", # buildMappingObject, poolFilter, getCoordinates
                            genomeBuild           = "auto", # buildMappingObject, poolFilter, getCoordinates
                            txdb                  = "auto", # buildMappingObject
                            getEnsDb              = FALSE, # buildMappingObject
-                           transcript            = FALSE, # mapForegroundIDs, getCoordinates
-                           threshold             = 0.9, # mapForegroundIDs
-                           stripVersions         = TRUE, # mapForegroundIDs
-                           inflateThresh         = 1, # mapForegroundIDs
+                           transcript            = FALSE, # mapIDs, getCoordinates
+                           threshold             = 0.9, # mapIDs
+                           stripVersions         = TRUE, # mapIDs
+                           inflateThresh         = 1, # mapIDs
                            geneType              = NULL, # poolFilter
                            ensdb                 = NULL, # poolFilter
                            TSS.method            = c("UCSCgene","Ensembl_canonical","commonTSS","uniqueTSS","fivePrimeTSS","allTSS"), # getCoordinates
@@ -149,8 +151,10 @@ enrichmentSets <- function(foreground_ids, # mapForegroundIds
   }
 
   # 3) Map the user’s IDs — a bit heavier, but now we know geneType is valid
-  mapped <- mapForegroundIDs(
+  mapped <- mapIDs(
     foreground_ids = foreground_ids,
+    background_ids = background_ids,
+    id_type        = id_type,
     mapping        = mapping,
     threshold      = threshold,
     transcript     = transcript,
@@ -159,7 +163,7 @@ enrichmentSets <- function(foreground_ids, # mapForegroundIds
   )
 
   # For testing:
-  # mapped <- mapForegroundIDs(foreground_ids2, mapping, transcript = FALSE)
+  # mapped <- mapIDs(foreground_ids2, mapping, transcript = FALSE)
 
   # 4) Pool‐level filtering (this is pretty quick, once mapped is in memory)
   filtered <- poolFilter(

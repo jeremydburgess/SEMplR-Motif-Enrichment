@@ -33,7 +33,7 @@
 #' @examples
 #' \dontrun{
 #'   mapping <- buildMappingObject("Homo sapiens")
-#'   out     <- mapForegroundIDs(
+#'   out     <- mapIDs(
 #'     foreground_ids = c("ENSG00000139618","ENSG00000157764"),
 #'     mapping        = mapping
 #'   )
@@ -45,7 +45,9 @@
 #' @importFrom rlang sym
 #' @keywords internal
 #' @export
-mapForegroundIDs <- function(foreground_ids,
+mapIDs <- function(foreground_ids,
+                   background_ids = NULL,
+                   id_type = "auto",
                              mapping,                 # Carries through parameters from previous function
                              threshold     = 0.9,     # Minimum acceptable proportion of mapped ids
                              transcript    = FALSE,   # Transcript/gene level analysis (default gene)
@@ -74,11 +76,33 @@ mapForegroundIDs <- function(foreground_ids,
   )
   cand_all <- setdiff(intersect(all_cols, valid_kts), non_id_fields)
 
-  message("attempting to map foreground_ids to high likelihood columns...")
-  fast_cols   <- intersect(cand_all, helper_guessCols(foreground_ids))
+  #Set best as NULL
+  best <- NULL
+
+  # Resolve provided id_type (if not left as 'auto')
+  if(! id_type == "auto"){
+
+    # First, check if provided id type is available in the so_obj
+    # if not, stop and request alternate (or 'auto')
+    if(! id_type %in% cand_all) {
+      stop("'",id_type,"' not available for in this mapping object. Use 'auto' or select
+           one of the following:",paste0(cand_all,collapse = ", "))
+    } else {
+     # Otherwise we can set 'best' to be that idtype
+      best <- id_type
+      message("mapping based on '",id_type,"' identifiers...")
+    }
+  }
+
+  # If best has been defined, we can just map to that field
+  if(!is.null(best)) { fast_cols <- best} else {
+  # Otherwise determine best fields heuristically
+      fast_cols   <- intersect(cand_all, helper_guessCols(foreground_ids))
+      message("attempting to map foreground_ids to high likelihood columns...")
+      }
 
   stats_fast <- data.frame(
-    id_type = fast_cols,
+    type = fast_cols,
     matched = vapply(
       fast_cols,
       function(col) helper_countMapped(so_obj, foreground_ids, col),
@@ -88,7 +112,7 @@ mapForegroundIDs <- function(foreground_ids,
   )
 
   # Calculate mapping percentages and convert NA -> 0
-  stats_fast <- helper_cleanStats(stats_fast)
+  stats_fast <- helper_cleanStats(stats_fast,foreground_ids)
 
   # If no successful mapping, try remaining columns
   if (max(stats_fast$pct_matched) >= threshold * 100) {
@@ -103,7 +127,7 @@ mapForegroundIDs <- function(foreground_ids,
       )
 
       stats_slow <- data.frame(
-        id_type = slow_cols,
+        type = slow_cols,
         matched = vapply(
           slow_cols,
           function(col) helper_countMapped(so_obj, foreground_ids, col),
@@ -113,7 +137,7 @@ mapForegroundIDs <- function(foreground_ids,
       )
 
     # Calculate mapping percentages and convert NA -> 0
-    stats_slow <- helper_cleanStats(stats_slow)
+    stats_slow <- helper_cleanStats(stats_slow, foreground_ids)
 
     # Combine fast and slow stats results
     stats <- rbind(stats_fast, stats_slow)
@@ -121,7 +145,7 @@ mapForegroundIDs <- function(foreground_ids,
 
   # Pick best matching keytype (if any)
   best_pct <- max(stats$pct_matched)
-  best     <- stats$id_type[which.max(stats$pct_matched)]
+  best     <- stats$type[which.max(stats$pct_matched)]
   if (best_pct < threshold*100) {
     stop("Unable to map ≥", threshold*100, "% of your IDs.")
   } else {
@@ -155,7 +179,17 @@ mapForegroundIDs <- function(foreground_ids,
     dplyr::distinct() %>%
     dplyr::collect()
 
-  #Background pool is all records from that table
+  #Background pool can be restricted according to background_ids (if provided)
+  if(!is.null(background_ids)) {
+
+      bg_ids <- tbl(so_obj, tbl_nm) %>%
+    dplyr::select(entrez,mappedID = !!sym(best)) %>%
+    dplyr::filter(mappedID %in% background_ids) %>%
+    dplyr::distinct() %>%
+    dplyr::collect()
+  }
+
+  # Otherwise background pool is all records from that table
   bg_ids <- tbl(so_obj, tbl_nm) %>%
     dplyr::select(entrez,mappedID = !!sym(best)) %>%
     dplyr::distinct() %>%
@@ -214,6 +248,11 @@ mapForegroundIDs <- function(foreground_ids,
       }
     }
   }
+
+
+  # Report mapping statistics:
+
+
 
   # Make output list
   mapped <- c(

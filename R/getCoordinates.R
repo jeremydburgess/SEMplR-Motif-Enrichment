@@ -10,7 +10,7 @@
 #' 4. Samples background promoter elements matching the foreground, via
 #'    \code{\link{helper_defineBackgroundElements}()}.
 #'
-#' @param mapped A list as returned by \code{\link{mapForegroundIDs}()}, containing
+#' @param mapped A list as returned by \code{\link{mapIDs}()}, containing
 #'   at least \code{fg_ids}, \code{bg_ids}, \code{so_obj}, \code{orgdb},
 #'   \code{genomeBuild}, and \code{organism}.
 #' @param transcript Logical; \code{TRUE} for transcript‐level coordinates,
@@ -53,7 +53,7 @@
 #' @examples
 #' \dontrun{
 #' mapping <- buildMappingObject("Homo sapiens")
-#' mapped  <- mapForegroundIDs(my_ids, mapping)
+#' mapped  <- mapIDs(my_ids, mapping)
 #' filtered <- poolFilter(mapped, geneType="protein-coding")
 #' coords <- getCoordinates(
 #'   filtered,

@@ -4,13 +4,15 @@
 \alias{helper_cleanStats}
 \title{Clean up mapping statistics data.frame}
 \usage{
-helper_cleanStats(df)
+helper_cleanStats(df, input_ids)
 }
 \arguments{
 \item{df}{A data.frame containing at least:
 \describe{
 \item{\code{matched}}{Integer count of mapped IDs per keytype.}
 }}
+
+\item{input_ids}{vector of the ids used for mapping}
 }
 \value{
 The same data.frame, with two modifications:

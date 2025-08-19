@@ -2,11 +2,11 @@
 #'
 #' @description
 #' `poolFilter()` takes the mapped foreground and background ID data frames
-#' (as produced by `mapForegroundIDs()`) and, if requested, filters both sets
+#' (as produced by `mapIDs()`) and, if requested, filters both sets
 #' to only include genes (or their transcripts) of a specified biotype
 #' (e.g. “protein-coding”).
 #'
-#' @param mapped    A list returned by `mapForegroundIDs()`, containing at least:
+#' @param mapped    A list returned by `mapIDs()`, containing at least:
 #'   \itemize{
 #'     \item `fg_ids`: data.frame with columns `entrez` and `mappedID` (foreground).
 #'     \item `bg_ids`: data.frame with columns `entrez` and `mappedID` (background).
@@ -25,7 +25,7 @@
 #' @examples
 #' \dontrun{
 #' mapping  <- buildMappingObject("Homo sapiens")
-#' mapped   <- mapForegroundIDs(my_ids, mapping)
+#' mapped   <- mapIDs(my_ids, mapping)
 #' filtered <- poolFilter(mapped, geneType = "protein-coding")
 #' }
 #'
